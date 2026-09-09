@@ -1,0 +1,40 @@
+# Local development stack.
+#
+# Only the database is defined so far. The backend and frontend services
+# arrive together with their Dockerfiles, so that `docker compose up` always
+# describes something that actually runs.
+#
+# No secrets belong in this file. The database values below are
+# development-only defaults for a service bound to loopback. Anything
+# resembling a real credential must be injected from the environment.
+#
+# Host ports are configurable and default to an offset range, because this
+# machine also runs unrelated projects that already hold 5432, 3000 and
+# 8000. Override them in a root .env file if they collide.
+
+name: credit-radar
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-credit_radar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-credit_radar}
+      POSTGRES_DB: ${POSTGRES_DB:-credit_radar}
+    ports:
+      # Loopback only: this database will hold credit and identity data and
+      # must never be reachable from the network.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5434}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-credit_radar} -d ${POSTGRES_DB:-credit_radar}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

@@ -25,8 +25,13 @@ class Settings(BaseSettings):
     )
 
     database_url: SecretStr = SecretStr(
-        "postgresql+psycopg://credit_radar:credit_radar@localhost:5432/credit_radar"
+        "postgresql+psycopg://credit_radar:credit_radar@localhost:5434/credit_radar"
     )
+    """Development default matches docker-compose.
+
+    Port 5434 rather than 5432: this machine runs unrelated projects that
+    already hold the conventional port. Override via the environment.
+    """
 
     api_host: str = "127.0.0.1"
     """Loopback by default.
