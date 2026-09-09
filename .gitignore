@@ -4,6 +4,8 @@
 .env
 .env.*
 !.env.example
+.env.local
+frontend/.env*.local
 *.pem
 *.key
 *.p12
@@ -21,7 +23,7 @@ data/personal/
 captures/
 screenshots/
 
-# --- Python ---------------------------------------------------------------
+# --- Python / backend -----------------------------------------------------
 __pycache__/
 *.py[cod]
 .venv/
@@ -30,12 +32,32 @@ venv/
 build/
 dist/
 
+# --- Node / frontend ------------------------------------------------------
+node_modules/
+.next/
+out/
+.turbo/
+next-env.d.ts
+*.tsbuildinfo
+
+# Only pnpm is used for the frontend. A competing lockfile means two
+# different dependency graphs claiming to describe the same app.
+package-lock.json
+yarn.lock
+bun.lockb
+
 # --- Tooling caches -------------------------------------------------------
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
 htmlcov/
+.eslintcache
+
+# --- Nix ------------------------------------------------------------------
+result
+result-*
+.direnv/
 
 # --- Editors / OS ---------------------------------------------------------
 .vscode/
