@@ -17,7 +17,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from credit_radar.domain.provenance import Provenance
 
@@ -127,6 +127,24 @@ class MarketObservation(BaseModel):
                 "financial values must not be built from float; pass str, int or Decimal"
             )
         return value
+
+    @model_validator(mode="after")
+    def _unit_must_match_catalog(self) -> MarketObservation:
+        """Refuse an observation whose unit contradicts the indicator definition.
+
+        A per-day rate stored under a per-year label is not a wrong number,
+        which is what makes it dangerous: it is a plausible number that will
+        silently skew every comparison built on top of it. The catalog states
+        each indicator's unit, so a mismatch is a bug and is rejected here
+        rather than discovered years into the historical series.
+        """
+        expected = INDICATOR_CATALOG[self.indicator_code].unit
+        if self.unit != expected:
+            raise ValueError(
+                f"indicator {self.indicator_code.value} is defined in "
+                f"{expected.value}, but the observation declares {self.unit.value}"
+            )
+        return self
 
 
 INDICATOR_CATALOG: dict[IndicatorCode, MarketIndicator] = {

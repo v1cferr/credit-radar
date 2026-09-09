@@ -75,16 +75,28 @@ class TestMarketObservation:
             )
 
     def test_preserves_scale_of_source_value(self):
-        # "0.051660" and "0.05166" are the same number but not the same
-        # published precision; the source's scale is part of the record.
+        # "13.90" and "13.9" are the same number but not the same published
+        # precision; the source's scale is part of the record.
         observation = MarketObservation(
             indicator_code=IndicatorCode.SELIC_ANNUALIZED,
             reference_date=date(2026, 9, 9),
-            value="0.051660",  # type: ignore[arg-type]
-            unit=Unit.PERCENT_PER_DAY,
+            value="13.90",  # type: ignore[arg-type]
+            unit=Unit.PERCENT_PER_YEAR,
             provenance=make_provenance(),
         )
-        assert str(observation.value) == "0.051660"
+        assert str(observation.value) == "13.90"
+
+    def test_rejects_unit_that_contradicts_the_catalog(self):
+        # A per-day value labelled per-year is a plausible-looking number
+        # that would skew every downstream comparison.
+        with pytest.raises(ValidationError, match="declares percent_per_day"):
+            MarketObservation(
+                indicator_code=IndicatorCode.SELIC_ANNUALIZED,
+                reference_date=date(2026, 9, 9),
+                value="0.051660",  # type: ignore[arg-type]
+                unit=Unit.PERCENT_PER_DAY,
+                provenance=make_provenance(),
+            )
 
     def test_allows_reference_date_in_the_future(self):
         # The Copom publishes the Selic target for dates that have not
