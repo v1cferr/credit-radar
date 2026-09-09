@@ -1,0 +1,43 @@
+# --- Secrets and sensitive data -------------------------------------------
+# This project handles credit, identity and financial information.
+# Never relax these rules without a documented reason.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+credentials/
+
+# Authenticated browser state is a credential (see docs/security.md).
+browser-profiles/
+storage-state*.json
+playwright/.auth/
+
+# Raw provider captures may contain CPF, debts and account data.
+data/raw/
+data/personal/
+captures/
+screenshots/
+
+# --- Python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# --- Tooling caches -------------------------------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Editors / OS ---------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
