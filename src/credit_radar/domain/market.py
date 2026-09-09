@@ -76,7 +76,8 @@ class IndicatorCode(StrEnum):
     IPCA_MONTHLY = "IPCA_MONTHLY"
     IGPM_MONTHLY = "IGPM_MONTHLY"
     VEHICLE_FINANCING_RATE_PF = "VEHICLE_FINANCING_RATE_PF"
-    MORTGAGE_FINANCING_RATE_PF = "MORTGAGE_FINANCING_RATE_PF"
+    MORTGAGE_RATE_MARKET_PF = "MORTGAGE_RATE_MARKET_PF"
+    MORTGAGE_RATE_REGULATED_PF = "MORTGAGE_RATE_REGULATED_PF"
 
 
 class MarketIndicator(BaseModel):
@@ -180,26 +181,41 @@ INDICATOR_CATALOG: dict[IndicatorCode, MarketIndicator] = {
         ),
         MarketIndicator(
             code=IndicatorCode.VEHICLE_FINANCING_RATE_PF,
-            name="Average vehicle financing rate, individuals",
+            name="Average vehicle financing rate, individuals (non-earmarked credit)",
             kind=IndicatorKind.MARKET_INTEREST_RATE,
             unit=Unit.PERCENT_PER_YEAR,
             frequency=Frequency.MONTHLY,
             description=(
-                "Average interest rate charged to individuals on vehicle "
-                "acquisition credit. The benchmark for judging whether a specific "
-                "vehicle financing offer is competitive."
+                "Average rate charged to individuals on non-earmarked vehicle "
+                "acquisition credit, weighted by the value of new concessions. The "
+                "benchmark for judging whether a specific vehicle financing offer "
+                "is competitive."
             ),
         ),
         MarketIndicator(
-            code=IndicatorCode.MORTGAGE_FINANCING_RATE_PF,
-            name="Average mortgage financing rate, individuals",
+            code=IndicatorCode.MORTGAGE_RATE_MARKET_PF,
+            name="Average mortgage rate, individuals (market rates)",
             kind=IndicatorKind.MARKET_INTEREST_RATE,
             unit=Unit.PERCENT_PER_YEAR,
             frequency=Frequency.MONTHLY,
             description=(
-                "Average interest rate charged to individuals on market-rate real "
-                "estate financing. Excludes subsidized housing programmes, whose "
-                "rates are not comparable."
+                "Average rate on earmarked real-estate financing for individuals "
+                "contracted at market rates. This is the correct benchmark for an "
+                "offer outside the regulated housing regime."
+            ),
+        ),
+        MarketIndicator(
+            code=IndicatorCode.MORTGAGE_RATE_REGULATED_PF,
+            name="Average mortgage rate, individuals (regulated rates)",
+            kind=IndicatorKind.MARKET_INTEREST_RATE,
+            unit=Unit.PERCENT_PER_YEAR,
+            frequency=Frequency.MONTHLY,
+            description=(
+                "Average rate on earmarked real-estate financing for individuals "
+                "under rates regulated by the CMN or tied to budgetary resources "
+                "(the SFH/FGTS regime). Structurally below the market-rate series, "
+                "so the two must never be compared against the same offer: which "
+                "regime an offer belongs to determines which benchmark applies."
             ),
         ),
     )
