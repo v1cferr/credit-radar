@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     api_port: int = 8000
     log_level: str = "INFO"
 
+    cors_origins: str = "http://localhost:3007"
+    """Comma-separated browser origins allowed to call this API.
+
+    Kept narrow deliberately. This API serves personal credit data and has no
+    reason to be reachable from an arbitrary page.
+    """
+
     http_timeout_seconds: float = Field(default=20.0, gt=0)
     """Mandatory outbound request timeout.
 
@@ -51,6 +58,10 @@ class Settings(BaseSettings):
     requests, so a request without a timeout can stall a collection run
     forever. See docs/providers/bcb-sgs.md.
     """
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 @lru_cache

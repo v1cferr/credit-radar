@@ -18,6 +18,7 @@ from credit_radar.domain.market import INDICATOR_CATALOG, IndicatorCode, Unit
 from credit_radar.domain.provenance import CollectionStatus, SourceId
 from credit_radar.providers.bcb.sgs import (
     COLLECTOR_VERSION,
+    SGS_MAX_LATEST_VALUES,
     SGS_SERIES,
     BcbSgsProvider,
 )
@@ -57,6 +58,43 @@ class TestSeriesMapping:
 
     def test_reports_which_indicators_it_supports(self, provider):
         assert set(provider.supported_indicators()) == set(SGS_SERIES)
+
+
+class TestUpstreamLimits:
+    def test_refuses_more_latest_values_than_the_api_accepts(self, provider):
+        # The SGS API rejects a "latest N" request above 20 with HTTP 400
+        # ("A quantidade maxima de valores deve ser 20"). Refusing locally
+        # turns a confusing upstream 400 into a clear programming error.
+        with pytest.raises(ValueError, match="at most 20 values"):
+            provider.fetch_latest(IndicatorCode.SELIC_TARGET, count=90)
+
+    def test_accepts_the_maximum_the_api_allows(self, provider, load_fixture):
+        with respx.mock:
+            respx.get(url__startswith=f"{SGS_HOST}/dados/serie/bcdata.sgs.432/dados").mock(
+                return_value=httpx.Response(200, json=load_fixture("bcb/sgs_432_selic_target.json"))
+            )
+            outcome = provider.fetch_latest(IndicatorCode.SELIC_TARGET, count=SGS_MAX_LATEST_VALUES)
+
+        assert outcome.run.status == CollectionStatus.SUCCESS
+
+    def test_does_not_clamp_silently(self, provider):
+        # Clamping would hand back 20 points to a caller that asked for 90
+        # and let it treat them as the complete series.
+        with pytest.raises(ValueError):
+            provider.fetch_latest(IndicatorCode.SELIC_TARGET, count=SGS_MAX_LATEST_VALUES + 1)
+
+    def test_range_requests_are_not_capped(self, provider, load_fixture):
+        # The date-range form carries no upstream limit, which is what makes
+        # backfilling history possible at all.
+        with respx.mock:
+            respx.get(url__startswith=f"{SGS_HOST}/dados/serie/bcdata.sgs.432/dados").mock(
+                return_value=httpx.Response(200, json=load_fixture("bcb/sgs_432_selic_target.json"))
+            )
+            outcome = provider.fetch_range(
+                IndicatorCode.SELIC_TARGET, start=date(2020, 1, 1), end=date(2026, 9, 16)
+            )
+
+        assert outcome.run.status == CollectionStatus.SUCCESS
 
 
 class TestNormalization:

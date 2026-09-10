@@ -51,6 +51,17 @@ SGS_BASE_URL: Final = "https://api.bcb.gov.br/dados/serie"
 
 COLLECTOR: Final = "credit_radar.providers.bcb.sgs"
 
+SGS_MAX_LATEST_VALUES: Final = 20
+"""Upstream cap on the ``/dados/ultimos/{n}`` form.
+
+The API enforces this as a business rule and rejects a larger request with
+HTTP 400 and "A quantidade maxima de valores deve ser 20". The date-range
+form carries no such cap -- a single request for six years of the daily
+Selic series returns ~2,450 rows in well under a second -- so history and
+backfill go through ``fetch_range`` and ``fetch_latest`` is only for
+checking the current value.
+"""
+
 COLLECTOR_VERSION: Final = "1"
 """Version of this parser.
 
@@ -143,9 +154,21 @@ class BcbSgsProvider:
         return tuple(SGS_SERIES)
 
     def fetch_latest(self, indicator: IndicatorCode, *, count: int = 1) -> MarketCollectionOutcome:
-        """Fetch the most recent ``count`` observations of an indicator."""
+        """Fetch the most recent ``count`` observations of an indicator.
+
+        Raises:
+            ValueError: ``count`` is outside the range the upstream API
+                accepts. Requesting more is rejected rather than silently
+                clamped, because a caller that wanted 90 points would
+                otherwise receive 20 and treat them as the whole series.
+        """
         if count < 1:
             raise ValueError("count must be at least 1")
+        if count > SGS_MAX_LATEST_VALUES:
+            raise ValueError(
+                f"the SGS API accepts at most {SGS_MAX_LATEST_VALUES} values per "
+                f"'latest' request (asked for {count}); use fetch_range for history"
+            )
         series_code = self._series_code(indicator)
         url = f"{SGS_BASE_URL}/bcdata.sgs.{series_code}/dados/ultimos/{count}"
         return self._collect(indicator, url, params={"formato": "json"})
