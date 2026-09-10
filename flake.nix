@@ -61,9 +61,10 @@
             export UV_PYTHON_DOWNLOADS=never
             export UV_PYTHON="${pkgs.python313}/bin/python3.13"
 
-            # Playwright launches this instead of a browser of its own, so the
-            # suite does not depend on a download that cannot run here.
-            export CREDIT_RADAR_CHROMIUM="${pkgs.chromium}/bin/chromium"
+            # Read by BOTH consumers of a browser: the Playwright config and
+            # the backend's settings, whose CREDIT_RADAR_ prefix maps this to
+            # `chromium_path`. One variable, so they cannot drift apart.
+            export CREDIT_RADAR_CHROMIUM_PATH="${pkgs.chromium}/bin/chromium"
             export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
 
             echo "CreditRadar development shell"

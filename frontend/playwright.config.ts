@@ -22,7 +22,8 @@ const isCI = !!process.env.CI;
  * also decouples the suite from Playwright's browser-revision pinning, which
  * otherwise breaks on every version bump on either side.
  */
-const chromiumPath = process.env.CREDIT_RADAR_CHROMIUM;
+// The same variable the backend reads as its `chromium_path` setting.
+const chromiumPath = process.env.CREDIT_RADAR_CHROMIUM_PATH;
 
 /**
  * End-to-end configuration.

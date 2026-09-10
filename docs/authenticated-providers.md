@@ -95,19 +95,52 @@ and often better than it, since it is already past the second factor. So:
 - screenshots off by default, because a screenshot of a bureau page *is* a
   credit report.
 
-## The open decision: where the browser runs
+## Authenticated providers run on the host, not in the container
 
-Not settled, and worth settling before the first flow is written.
+Settled. The sign-in step is interactive and needs a visible browser, which
+is inherently host-bound: a headed browser inside a container needs display
+forwarding, and the whole point of the step is that a person interacts with
+it.
 
-The first sign-in needs a **visible** browser, which is naturally a host
-concern: a headed browser inside a container needs display forwarding, and
-the point of the step is that a person interacts with it. Later collection
-could run headless, either on the host or in the container with the session
-shared through a mount.
+Splitting sign-in from collection would mean a session file crossing that
+boundary and half a gigabyte of browser added to an image that never runs it.
+So the entire authenticated path stays on the host, and the session never
+leaves it. The container keeps serving the API and collecting public market
+data, which needs no browser at all.
 
-The trade is between one runtime with awkward display handling, and two
-runtimes with a session file crossing between them. It is written down here
-rather than decided by whichever one gets built first.
+Playwright is therefore an optional extra rather than a dependency:
+
+```bash
+cd backend && uv sync --extra rpa
+```
+
+The consequence to remember: when scheduled collection from an authenticated
+source arrives, its timer runs against the host installation, not through
+`docker compose exec` the way the market collector does.
+
+### Signing in
+
+```bash
+credit-radar auth bcb.registrato
+```
+
+Opens Registrato's own entry page in a visible browser and stops. It types
+nothing, reads nothing while you sign in, and has no code path that could
+answer a challenge. When you are done it keeps the session.
+
+It will also tell you that the session is stored but **not verified**,
+because collection from that source is not implemented yet. Reporting success
+for a collection that did not happen is the kind of false confidence this
+project exists to avoid.
+
+Sessions live under `~/.local/state/credit-radar/browser-profiles/<source>`,
+one directory per source, owner-only. A single profile shared between bureaus
+would let a script that went wrong on one act with the session of another.
+
+Chromium comes from the development shell through
+`CREDIT_RADAR_CHROMIUM_PATH`, the same variable the E2E suite uses, because
+the binaries Playwright downloads are linked against paths that do not exist
+on NixOS.
 
 ## Parsers need a sanitized sample, and that is a real constraint
 
@@ -116,11 +149,30 @@ visible only in a real report, which contains a CPF, a name and a complete
 credit history. That report must not be shared with an assistant, pasted into
 a conversation, or committed.
 
-The way through is a **redaction tool run by the person who owns the data**:
-it takes the real report, replaces identifiers and values with synthetic
-ones, keeps the *structure*, and produces a fixture that is safe to commit
-and to review. The parser is then written and tested against that fixture,
-exactly as the Banco Central SGS parsers are today.
+The way through is a redaction tool that **you** run, on your machine, over
+your file:
+
+```bash
+cd backend
+uv run python scripts/redact_capture.py report.json --out fixture.json
+```
+
+It replaces CPFs, CNPJs, e-mails, phone numbers, names, birth dates and
+amounts with synthetic values while keeping the structure a parser is written
+against. Replacements match the original length, so a fixed-width or
+column-aligned format still parses. Numbers that carry no identity, like an
+instalment count or a rate, are left alone, because changing everything would
+destroy the shape the parser needs.
+
+It prints what it changed, and **it over-redacts where a field is
+ambiguous**. A `nome` can hold the account holder or an institution, and only
+you can tell which, so both are replaced with a marker that reads as redacted
+rather than as somebody's name. Restoring a value that was never personal is
+safe; the reverse is not.
+
+**Review the output before committing it.** The tool is a first pass by a
+machine over a document only you have seen, so it cannot be the last word on
+whether the file is safe.
 
 That ordering is not a formality. A parser written against a real document
 that nobody may look at is a parser nobody can review.
