@@ -89,8 +89,3 @@ export interface ObservationSeries {
   indicator: Indicator;
   observations: Observation[];
 }
-
-export interface Health {
-  status: string;
-  database: string;
-}

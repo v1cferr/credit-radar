@@ -79,10 +79,6 @@ services:
   frontend:
     build:
       context: ./frontend
-      args:
-        # Baked into the client bundle at build time: Next.js inlines
-        # NEXT_PUBLIC_* values. Only genuinely public configuration here.
-        NEXT_PUBLIC_API_BASE_URL: http://localhost:${BACKEND_HOST_PORT:-8007}
     environment:
       # Server-side rendering stays inside the compose network.
       CREDIT_RADAR_API_INTERNAL_URL: http://backend:8000

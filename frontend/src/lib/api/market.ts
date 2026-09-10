@@ -2,7 +2,6 @@
 
 import { apiFetch, type ApiResult } from "@/lib/api/client";
 import type {
-  Health,
   IndicatorCode,
   MarketSummary,
   ObservationSeries,
@@ -27,8 +26,4 @@ export function getIndicatorHistory(
   return apiFetch<ObservationSeries>(
     `${API_V1}/market/indicators/${code}/observations${query ? `?${query}` : ""}`,
   );
-}
-
-export function getHealth(): Promise<ApiResult<Health>> {
-  return apiFetch<Health>("/health");
 }

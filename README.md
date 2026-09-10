@@ -122,7 +122,7 @@ docker compose up -d
 ```
 
 - Frontend — http://localhost:3007
-- Backend — http://localhost:8007 (docs at `/docs`)
+- Backend — http://localhost:8007 (interactive docs at `/api/v1/docs`)
 - PostgreSQL — `127.0.0.1:5434`
 
 Ports default to an offset range because the development machine runs other

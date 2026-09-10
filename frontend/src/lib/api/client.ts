@@ -7,14 +7,21 @@
  * layer and carries its provenance.
  *
  * Requests are made server-side by default, which keeps the API address off
- * the client and sidesteps CORS entirely.
+ * the client. Anything that does run in the browser goes to the same origin
+ * and is routed to the backend by the proxy in front, so the deployment never
+ * depends on a client knowing where the API lives.
  */
 
 const SERVER_BASE_URL =
   process.env.CREDIT_RADAR_API_INTERNAL_URL ?? "http://127.0.0.1:8007";
 
-const BROWSER_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8007";
+/** Browser-side base URL: empty, meaning same-origin.
+ *
+ * Behind the reverse proxy, `/api/*` is routed to the backend before Next.js
+ * sees it; in development, the rewrite in next.config.ts does the same. Either
+ * way the backend's address never reaches the client and there is no
+ * cross-origin request to authorize. */
+const BROWSER_BASE_URL = "";
 
 /** Milliseconds before a backend call is abandoned.
  *

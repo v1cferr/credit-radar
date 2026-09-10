@@ -31,6 +31,13 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="CreditRadar API",
         version="0.1.0",
+        # Everything the backend serves lives under one prefix, the interactive
+        # docs and the schema included. Behind a reverse proxy the frontend owns
+        # the domain root, so a backend path outside /api/v1 would either be
+        # unreachable or collide with a future page.
+        openapi_url=f"{API_PREFIX}/openapi.json",
+        docs_url=f"{API_PREFIX}/docs",
+        redoc_url=None,
         summary="Personal credit intelligence for the Brazilian credit market",
         description=(
             "Private, single-user API. It exposes observed data and internal "

@@ -30,11 +30,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# NEXT_PUBLIC_* values are inlined into the client bundle at build time, so
-# only genuinely public configuration may be passed here. Provider
-# credentials and session state belong exclusively to the backend.
-ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8007
-ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+# No NEXT_PUBLIC_* value is needed or accepted: browser calls are
+# same-origin and the reverse proxy routes /api to the backend, so the
+# client bundle never learns the API's address. Anything inlined here would
+# be readable by whoever loads the page.
 ENV NEXT_TELEMETRY_DISABLED=1
 
 

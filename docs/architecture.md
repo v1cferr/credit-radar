@@ -120,11 +120,24 @@ A test asserts against the generated OpenAPI document that the only
 non-idempotent route is data collection. The safety invariant is easier to
 guarantee by pinning the HTTP surface than by reviewing it.
 
+Everything the backend serves lives under `/api/v1`, the interactive docs and
+the schema included, plus `/health` for operations. Behind a reverse proxy the
+frontend owns the domain root, so a backend path outside that prefix would
+either be unreachable or collide with a future page.
+
 ## Frontend
 
 Next.js App Router. Data is fetched in server components through
-`src/lib/api`, which keeps the API address off the client and avoids CORS
-entirely. Charts are client components because Recharts needs the DOM.
+`src/lib/api`, which keeps the API address off the client. Charts are client
+components because Recharts needs the DOM.
+
+Anything that does run in the browser calls the same origin, and `/api` is
+routed to the backend by the proxy in front (or, in development, by a rewrite
+in `next.config.ts`). Dev and deployment therefore behave identically, and the
+client bundle never learns where the API lives: the application uses no
+`NEXT_PUBLIC_*` variable at all. CORS remains configured on the backend, not
+for the frontend's benefit but because the API port is reachable on the LAN
+and a page should not be able to read it cross-origin.
 
 Backend failures are values, not exceptions: a provider being unreachable is
 an expected state to render honestly, not a crashed page. Results carry a
@@ -134,7 +147,8 @@ observed, and every card on a page uses the same reference instant.
 Types are hand-written rather than generated from OpenAPI. With one resource
 area, generation would add a build step and a regeneration ritual to save
 about fifty lines. Once debts, scores, exposure and financing exist it starts
-paying for itself, and the document is already served at `/openapi.json`.
+paying for itself, and the document is already served at
+`/api/v1/openapi.json`.
 
 ## Known limitations
 

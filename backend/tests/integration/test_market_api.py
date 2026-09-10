@@ -256,7 +256,7 @@ class TestSafetyInvariant:
     def test_the_api_exposes_no_write_beyond_collection(self, client):
         # CreditRadar must never be able to create a financial obligation.
         # Guard the surface: the only non-GET route may be data collection.
-        spec = client.get("/openapi.json").json()
+        spec = client.get("/api/v1/openapi.json").json()
         mutating = {
             (path, method)
             for path, operations in spec["paths"].items()
