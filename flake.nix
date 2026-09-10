@@ -42,6 +42,13 @@
             # exports the path the Playwright config reads.
             chromium
 
+            # The C++ runtime the pip-installed Playwright needs. Its driver
+            # is an unpatched Node binary inside the wheel, so on NixOS it
+            # fails with "libstdc++.so.6: cannot open shared object file"
+            # before it ever reaches a browser. Nothing in the Nix packaging
+            # of Playwright fixes that, because the binary comes from PyPI.
+            stdenv.cc.cc.lib
+
             # Database client, for inspecting the containerized instance
             postgresql_17
 
@@ -66,6 +73,12 @@
             # `chromium_path`. One variable, so they cannot drift apart.
             export CREDIT_RADAR_CHROMIUM_PATH="${pkgs.chromium}/bin/chromium"
             export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
+
+            # Appended rather than assigned, and only when already set, so an
+            # empty entry (which would mean "the current directory") cannot
+            # end up on the search path.
+            LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+            export LD_LIBRARY_PATH
 
             echo "CreditRadar development shell"
             echo "  python $(python3 --version 2>&1 | cut -d' ' -f2)  uv $(uv --version | cut -d' ' -f2)"

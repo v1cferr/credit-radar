@@ -30,7 +30,7 @@ from credit_radar.providers.bcb.sgs import SGS_SERIES, BcbSgsProvider
 from credit_radar.providers.browser import (
     BrowserUnavailableError,
     browser_session,
-    has_session,
+    has_profile,
     profile_dir,
 )
 from credit_radar.providers.http import HttpClient
@@ -193,6 +193,25 @@ AUTHENTICATED_SOURCES = {registrato.SOURCE_ID.value: registrato}
 """Sources with a sign-in flow. Only implemented ones appear here."""
 
 
+def wait_for_sign_in(context: object) -> None:
+    """Block until the person says they have finished signing in.
+
+    Extracted so the non-interactive branch is testable without launching a
+    browser, which is the only way to reach it otherwise.
+    """
+    try:
+        input("  Press Enter once you have finished signing in... ")
+    except EOFError:
+        # No terminal to read from, which happens when the command runs from
+        # a script or a task runner. Waiting for the window to close is the
+        # same signal by another route, and better than returning at once and
+        # saving a profile nobody signed into.
+        print("  No interactive terminal. Close the browser window when you are done.")
+        wait_for_event = getattr(context, "wait_for_event", None)
+        if callable(wait_for_event):
+            wait_for_event("close", timeout=0)
+
+
 def authenticate(source: str) -> int:
     """Open a browser so a person can sign in, then keep the session.
 
@@ -219,8 +238,11 @@ def authenticate(source: str) -> int:
     print(f"  Session directory: {profile_dir(module.SOURCE_ID, root)}")
     print()
 
-    if has_session(module.SOURCE_ID, root):
-        print("  A saved session already exists; signing in again replaces it.")
+    if has_profile(module.SOURCE_ID, root):
+        # Deliberately not "a session exists": a profile directory says a
+        # browser has run here, not that anyone signed in.
+        print("  A browser profile already exists here and will be reused.")
+        print("  If a previous sign-in did not finish, signing in again is safe.")
         print()
 
     try:
@@ -236,7 +258,7 @@ def authenticate(source: str) -> int:
             print("  A browser window is open. Sign in there, then come back.")
             print("  Nothing is read from the page while you do.")
             print()
-            input("  Press Enter once you have finished signing in... ")
+            wait_for_sign_in(context)
     except BrowserUnavailableError as error:
         print(f"  {error}")
         return 1

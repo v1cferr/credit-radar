@@ -59,11 +59,17 @@ def profile_dir(source_id: SourceId, profile_root: Path) -> Path:
     return path
 
 
-def has_session(source_id: SourceId, profile_root: Path) -> bool:
-    """Whether a saved session exists for this source.
+def has_profile(source_id: SourceId, profile_root: Path) -> bool:
+    """Whether a browser profile directory already exists for this source.
 
-    Existence only. Whether it is still valid can only be known by using it,
-    and a provider that finds it expired must ask for a new sign-in rather
+    Named for what it can actually tell. An earlier version of this was
+    called `has_session` and returned True whenever the directory was
+    non-empty, which a browser makes true the moment it starts: a run that
+    was interrupted before anyone signed in left 424 files behind and the
+    command then reported a saved session that did not exist.
+
+    Whether a session is present and still valid can only be known by using
+    it. A provider that finds it expired must ask for a new sign-in rather
     than trying to work around the challenge.
     """
     path = profile_root / source_id.value.replace(".", "_")
