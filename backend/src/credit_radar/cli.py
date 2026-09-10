@@ -15,6 +15,11 @@ import time
 from datetime import UTC, date, datetime, timedelta
 
 from credit_radar.config import get_settings
+from credit_radar.credentials import (
+    CREDENTIAL_SPECS,
+    CredentialStore,
+    secret_name,
+)
 from credit_radar.domain.market import INDICATOR_CATALOG, Frequency, IndicatorCode
 from credit_radar.domain.provenance import CollectionStatus
 from credit_radar.logging_config import configure_logging
@@ -129,6 +134,49 @@ def collect(
     return 0
 
 
+def report_credentials() -> int:
+    """Report which declared credentials are present, without reading values.
+
+    Exists so the secret wiring can be verified by the person who owns the
+    secrets, without a value being printed, logged or shown to anyone. It
+    reports PRESENCE only: it never displays, compares or validates a
+    credential, so running it is safe anywhere the output might be read.
+    """
+    store = CredentialStore()
+
+    if not CREDENTIAL_SPECS:
+        print("No authenticated source declares credentials yet.")
+        return 0
+
+    incomplete = 0
+
+    for source_id, spec in sorted(CREDENTIAL_SPECS.items(), key=lambda item: item[0].value):
+        print(f"{source_id.value}")
+        if spec.notes:
+            print(f"  {spec.notes}")
+
+        availability = store.availability(source_id)
+        for key, present in availability.items():
+            requirement = "required" if key in spec.required else "optional"
+            mark = "present" if present else "MISSING"
+            print(f"    [{mark:>7}] {secret_name(source_id, key)}  ({requirement})")
+
+        if any(not availability[key] for key in spec.required):
+            incomplete += 1
+        print()
+
+    if incomplete:
+        print(
+            f"{incomplete} source(s) cannot sign in yet. Create the missing entries in "
+            "the password manager, sync them to sops, then rebuild so /run/secrets "
+            "updates."
+        )
+        return 1
+
+    print("Every declared credential is present.")
+    return 0
+
+
 def _parse_date(value: str) -> date:
     try:
         return date.fromisoformat(value)
@@ -157,6 +205,15 @@ def _build_parser() -> argparse.ArgumentParser:
             "Re-collecting an unchanged value stores nothing."
         ),
     )
+    subparsers.add_parser(
+        "credentials",
+        help="report which declared credentials are present",
+        description=(
+            "Reports presence only. It never prints, logs or validates a "
+            "credential value, so its output is safe to share."
+        ),
+    )
+
     collect_parser.add_argument(
         "--indicator",
         action="append",
@@ -199,6 +256,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     configure_logging(get_settings().log_level)
+
+    if args.command == "credentials":
+        return report_credentials()
 
     if args.command != "collect":  # pragma: no cover - argparse enforces this
         parser.error(f"unknown command {args.command!r}")

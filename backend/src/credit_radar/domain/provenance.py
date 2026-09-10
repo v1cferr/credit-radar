@@ -32,6 +32,15 @@ class SourceId(StrEnum):
     """
 
     BCB_SGS = "bcb.sgs"
+    """Public time-series API. No authentication, no personal data."""
+
+    BCB_REGISTRATO = "bcb.registrato"
+    """Registrato / SCR: the credit exposure Banco Central holds under a CPF.
+
+    Authenticated through gov.br, and it produces a downloadable report
+    rather than requiring the page to be scraped, which makes it the
+    highest-preference authenticated source in the acquisition strategy.
+    """
 
 
 class CollectionStatus(StrEnum):

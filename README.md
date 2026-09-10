@@ -110,6 +110,7 @@ Each tool owns one thing, deliberately:
 
 More detail in [`docs/`](docs/): [architecture](docs/architecture.md),
 [domain model](docs/domain-model.md), [security](docs/security.md),
+[authenticated providers](docs/authenticated-providers.md),
 [BCB SGS provider](docs/providers/bcb-sgs.md).
 
 ## Getting started
