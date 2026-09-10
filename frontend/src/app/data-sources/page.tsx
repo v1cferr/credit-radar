@@ -24,7 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CollectionStatusBadge } from "@/features/data-sources/components/collection-status-badge";
+import { FreshnessBadge } from "@/features/data-sources/components/freshness-badge";
+import { freshnessOf } from "@/features/data-sources/freshness";
 import { PLANNED_PROVIDERS } from "@/features/data-sources/planned-providers";
 import { getMarketSummary } from "@/lib/api/market";
 import { formatDateTime, formatRelativeTime } from "@/lib/format";
@@ -81,11 +82,9 @@ export default async function DataSourcesPage() {
                           {entry.latest?.provenance.source_reference ?? "—"}
                         </TableCell>
                         <TableCell>
-                          {entry.last_run ? (
-                            <CollectionStatusBadge status={entry.last_run.status} />
-                          ) : (
-                            <Badge variant="outline">Nunca coletada</Badge>
-                          )}
+                          <FreshnessBadge
+                            freshness={freshnessOf(entry.last_run, now)}
+                          />
                         </TableCell>
                         <TableCell className="text-xs">
                           {entry.last_run ? (

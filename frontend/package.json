@@ -9,8 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e": "rm -rf .next && next build && playwright test",
+    "test:e2e:ui": "rm -rf .next && next build && playwright test --ui"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

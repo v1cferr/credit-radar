@@ -70,13 +70,26 @@ test.describe("failed collection", () => {
     await expect(row.getByText("Falhou")).toBeVisible();
   });
 
-  test("healthy sources are still reported as healthy", async ({ page }) => {
+  test("current sources are still reported as current", async ({ page }) => {
     // Otherwise a page that says everything failed would pass the test above.
     await page.goto("/data-sources");
 
     const row = page.getByRole("row").filter({ hasText: SEEDED.selicTarget.label });
 
-    await expect(row.getByText("Saudável")).toBeVisible();
+    await expect(row.getByText("Atualizada")).toBeVisible();
+  });
+
+  test("a source that succeeded days ago is not called current", async ({
+    page,
+  }) => {
+    // The table used to report the raw outcome of the last attempt, so a
+    // collection that worked ten days ago read as "Saudável" here while its
+    // own card warned about the age. One question, two answers.
+    await page.goto("/data-sources");
+
+    const row = page.getByRole("row").filter({ hasText: SEEDED.stale.label });
+
+    await expect(row.getByText("Desatualizada")).toBeVisible();
   });
 });
 

@@ -21,7 +21,6 @@
  */
 
 import type {
-  CollectionStatus,
   Frequency,
   IndicatorCode,
   IndicatorKind,
@@ -90,12 +89,6 @@ export const KIND_LABELS: Record<IndicatorKind, string> = {
   policy_rate: "taxa de política monetária",
   market_interest_rate: "taxa de juros de mercado",
   inflation_index: "índice de inflação",
-};
-
-export const COLLECTION_STATUS_LABELS: Record<CollectionStatus, string> = {
-  success: "Saudável",
-  no_data: "Sem dados",
-  failed: "Falhou",
 };
 
 /** Human-readable name of a data source, by its internal id. */

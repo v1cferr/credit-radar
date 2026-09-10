@@ -30,9 +30,18 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { NAVIGATION } from "@/components/app-shell/navigation";
+import { useSidebar } from "@/components/ui/sidebar";
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
+
+  // On a phone this sidebar is a modal drawer, and following a link inside
+  // it does not unmount it: the destination renders behind a drawer that is
+  // still open, with everything outside the drawer marked inert. So the
+  // reader taps a section, appears to arrive nowhere, and has to dismiss
+  // the menu by hand to see the page they asked for.
+  const closeDrawer = () => setOpenMobile(false);
 
   return (
     <Sidebar collapsible="icon">
@@ -41,7 +50,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
-              render={<Link href="/" prefetch={false} />}
+              render={<Link href="/" prefetch={false} onClick={closeDrawer} />}
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Radar className="size-4" />
@@ -71,7 +80,13 @@ export function AppSidebar() {
                       className={
                         item.implemented ? undefined : "text-muted-foreground"
                       }
-                      render={<Link href={item.href} prefetch={false} />}
+                      render={
+                        <Link
+                          href={item.href}
+                          prefetch={false}
+                          onClick={closeDrawer}
+                        />
+                      }
                     >
                       <item.icon />
                       <span>{item.title}</span>

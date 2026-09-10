@@ -53,13 +53,17 @@ test.describe("phone viewport", () => {
   test("the full menu is reachable from the tab bar", async ({ page }) => {
     await page.goto("/");
 
-    // The sidebar is a drawer here, so a planned section is not on screen
-    // until the menu is opened.
-    await expect(page.getByRole("link", { name: /^Scores/ })).toHaveCount(0);
+    // The sidebar is a drawer here, so the full menu is not on screen until
+    // it is asked for. Scoped to the drawer rather than to the page,
+    // because the overview links to planned sections in its own content.
+    await expect(page.getByRole("dialog")).toHaveCount(0);
 
     await page.getByRole("button", { name: "Mais" }).click();
 
-    await page.getByRole("link", { name: /^Scores/ }).click();
+    const menu = page.getByRole("dialog");
+    await expect(menu).toBeVisible();
+
+    await menu.getByRole("link", { name: /^Scores/ }).click();
     await expect(page.getByRole("heading", { name: "Scores" })).toBeVisible();
   });
 

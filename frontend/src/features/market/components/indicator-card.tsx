@@ -21,6 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ProvenancePopover } from "@/components/common/provenance-popover";
+import { freshnessOf } from "@/features/data-sources/freshness";
 import {
   describeMovement,
   favourabilityOf,
@@ -36,9 +37,6 @@ import {
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { IndicatorSummary } from "@/lib/api/types";
-
-/** How stale a source may be before the card says so. */
-const STALE_AFTER_MS = 36 * 60 * 60 * 1000;
 
 const DIRECTION_ICONS = {
   up: ArrowUpRight,
@@ -68,10 +66,7 @@ export function IndicatorCard({
   // The pt-BR name, not the backend's en-US domain description. See lib/labels.
   const label = INDICATOR_LABELS[indicator.code];
 
-  const collectionFailed = lastRun?.status === "failed";
-  const isStale =
-    lastRun !== null &&
-    now - new Date(lastRun.finished_at).getTime() > STALE_AFTER_MS;
+  const freshness = freshnessOf(lastRun, now);
 
   const movement =
     latest && previous
@@ -148,12 +143,12 @@ export function IndicatorCard({
           </p>
         )}
 
-        {collectionFailed ? (
+        {freshness === "failed" ? (
           <p className="flex items-center gap-1.5 text-xs text-negative">
             <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
             A última coleta falhou. Este valor pode estar desatualizado.
           </p>
-        ) : isStale && lastRun ? (
+        ) : freshness === "stale" && lastRun ? (
           <p className="flex items-center gap-1.5 text-xs text-warning">
             <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
             Sincronizado {formatRelativeTime(lastRun.finished_at, now)}
