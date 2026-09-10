@@ -16,7 +16,14 @@ test.describe("typography", () => {
   test("source references are set in a monospaced face", async ({ page }) => {
     await page.goto("/data-sources");
 
-    const reference = page.getByText(SEEDED.selicTarget.series).first();
+    // The reference is rendered twice, once for each breakpoint: on a
+    // phone it folds under the indicator name so provenance does not
+    // disappear behind a sideways scroll. Only one of the two is ever
+    // displayed, so the visible one is the one to measure.
+    const reference = page
+      .getByText(SEEDED.selicTarget.series, { exact: true })
+      .filter({ visible: true })
+      .first();
     await expect(reference).toBeVisible();
 
     const family = await reference.evaluate(

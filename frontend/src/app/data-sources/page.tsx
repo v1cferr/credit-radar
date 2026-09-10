@@ -8,7 +8,6 @@
 
 import { PageHeader } from "@/components/app-shell/page-header";
 import { BackendOfflineState } from "@/components/common/state-messages";
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -24,9 +23,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollectionHealth } from "@/features/data-sources/components/collection-health";
 import { FreshnessBadge } from "@/features/data-sources/components/freshness-badge";
-import { freshnessOf } from "@/features/data-sources/freshness";
-import { PLANNED_PROVIDERS } from "@/features/data-sources/planned-providers";
+import { ProviderList } from "@/features/data-sources/components/provider-list";
+import {
+  FRESHNESS_DESCRIPTIONS,
+  freshnessOf,
+} from "@/features/data-sources/freshness";
 import { getMarketSummary } from "@/lib/api/market";
 import { formatDateTime, formatRelativeTime } from "@/lib/format";
 import { INDICATOR_LABELS } from "@/lib/labels";
@@ -48,6 +51,10 @@ export default async function DataSourcesPage() {
       />
 
       <div className="flex flex-col gap-6 p-4 md:p-6">
+        {summary.ok ? (
+          <CollectionHealth indicators={summary.data.indicators} now={now} />
+        ) : null}
+
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">Situação da coleta</CardTitle>
@@ -66,10 +73,14 @@ export default async function DataSourcesPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Indicador</TableHead>
-                      <TableHead>Série</TableHead>
+                      <TableHead className="hidden sm:table-cell">
+                        Série
+                      </TableHead>
                       <TableHead>Situação</TableHead>
-                      <TableHead>Última sincronização</TableHead>
-                      <TableHead className="text-right">Observações</TableHead>
+                      <TableHead>Sincronização</TableHead>
+                      <TableHead className="hidden text-right sm:table-cell">
+                        Observações
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -77,14 +88,28 @@ export default async function DataSourcesPage() {
                       <TableRow key={entry.indicator.code}>
                         <TableCell className="font-medium">
                           {INDICATOR_LABELS[entry.indicator.code].name}
+                          {/* On a phone the series column is folded in
+                              here, so the provenance stays on screen
+                              instead of behind a sideways scroll. */}
+                          <span className="block font-mono text-xs font-normal text-muted-foreground sm:hidden">
+                            {entry.latest?.provenance.source_reference ?? "—"}
+                          </span>
                         </TableCell>
-                        <TableCell className="font-mono text-xs">
+                        <TableCell className="hidden font-mono text-xs sm:table-cell">
                           {entry.latest?.provenance.source_reference ?? "—"}
                         </TableCell>
                         <TableCell>
-                          <FreshnessBadge
-                            freshness={freshnessOf(entry.last_run, now)}
-                          />
+                          <span
+                            title={
+                              FRESHNESS_DESCRIPTIONS[
+                                freshnessOf(entry.last_run, now)
+                              ]
+                            }
+                          >
+                            <FreshnessBadge
+                              freshness={freshnessOf(entry.last_run, now)}
+                            />
+                          </span>
                         </TableCell>
                         <TableCell className="text-xs">
                           {entry.last_run ? (
@@ -95,7 +120,7 @@ export default async function DataSourcesPage() {
                             "—"
                           )}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">
+                        <TableCell className="numeric hidden text-right sm:table-cell">
                           {entry.last_run?.observation_count ?? 0}
                         </TableCell>
                       </TableRow>
@@ -119,38 +144,7 @@ export default async function DataSourcesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fonte</TableHead>
-                    <TableHead>Integração</TableHead>
-                    <TableHead>Situação</TableHead>
-                    <TableHead>Observações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {PLANNED_PROVIDERS.map((provider) => (
-                    <TableRow key={provider.name}>
-                      <TableCell className="font-medium">{provider.name}</TableCell>
-                      <TableCell className="text-xs">{provider.kind}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={provider.implemented ? "secondary" : "outline"}
-                        >
-                          {provider.implemented
-                            ? "Implementada"
-                            : "Não implementada"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {provider.note}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <ProviderList />
           </CardContent>
         </Card>
       </div>
