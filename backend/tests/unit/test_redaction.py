@@ -464,3 +464,111 @@ class TestPositionedWords:
         surviving = {w["text"] for w in result}
         assert "ALGUEM" not in surviving
         assert "SOBRENOME" not in surviving
+
+
+class TestVerifyCommand:
+    """Scanning a finished fixture.
+
+    A command rather than a snippet to paste, because a snippet carries a
+    path relative to whichever directory the reader happened to be in.
+    Getting that wrong looks like the fixture is missing rather than like the
+    instruction was wrong, which is exactly what happened once.
+    """
+
+    def write(self, tmp_path, document) -> object:
+        import json
+
+        path = tmp_path / "fixture.json"
+        path.write_text(json.dumps(document), encoding="utf-8")
+        return path
+
+    def test_a_clean_fixture_passes(self, redact, tmp_path, capsys):
+        path = self.write(
+            tmp_path,
+            {"pages": [{"text": "CPF: 000.000.000-00 Saldo R$ 1.234,56", "words": []}]},
+        )
+
+        assert redact.verify(path) == 0
+        assert "no identifier shapes survived" in capsys.readouterr().out
+
+    def test_a_surviving_cpf_fails(self, redact, tmp_path, capsys):
+        path = self.write(tmp_path, {"pages": [{"text": "CPF: 529.982.247-25"}]})
+
+        assert redact.verify(path) == 1
+        assert "Do not commit" in capsys.readouterr().out
+
+    def test_a_surviving_amount_fails(self, redact, tmp_path):
+        # The leak that survived a scan reporting success once.
+        path = self.write(tmp_path, {"pages": [{"text": "Saldo R$ 34,97"}]})
+
+        assert redact.verify(path) == 1
+
+    def test_it_reports_a_shape_and_never_the_value(self, redact, tmp_path, capsys):
+        path = self.write(tmp_path, {"pages": [{"text": "CPF: 529.982.247-25"}]})
+
+        redact.verify(path)
+        output = capsys.readouterr().out
+
+        assert "529.982.247-25" not in output
+        assert "nnn.nnn.nnn-nn" in output
+
+    def test_it_finds_a_token_split_across_the_words_list(self, redact, tmp_path, capsys):
+        # The shape that defeated a joined-name search: a surname as its own
+        # positioned word, which no label rule can see.
+        path = self.write(
+            tmp_path,
+            {
+                "pages": [
+                    {
+                        "text": "Nome: VALOR SINTETICO",
+                        "words": [{"text": "SOBRENOME", "x0": 1.0, "x1": 2.0, "top": 1.0}],
+                    }
+                ]
+            },
+        )
+
+        redact.verify(path)
+
+        assert "SOBRENOME" in capsys.readouterr().out
+
+    def test_placeholders_are_not_listed_for_review(self, redact, tmp_path, capsys):
+        path = self.write(
+            tmp_path,
+            {
+                "pages": [
+                    {
+                        "text": "x",
+                        "words": [
+                            {"text": redact.SYNTHETIC_TOKEN, "x0": 1.0, "x1": 2.0, "top": 1.0}
+                        ],
+                    }
+                ]
+            },
+        )
+
+        redact.verify(path)
+
+        assert redact.SYNTHETIC_TOKEN not in capsys.readouterr().out.split("tokens to READ")[1]
+
+    def test_dates_are_not_listed_as_name_candidates(self, redact, tmp_path, capsys):
+        # A month/year pair has no letters, so it cannot be a name and would
+        # only bury the tokens that matter.
+        path = self.write(
+            tmp_path,
+            {
+                "pages": [
+                    {
+                        "text": "x",
+                        "words": [{"text": "06/2026", "x0": 1.0, "x1": 2.0, "top": 1.0}],
+                    }
+                ]
+            },
+        )
+
+        redact.verify(path)
+
+        assert "06/2026" not in capsys.readouterr().out.split("tokens to READ")[1]
+
+    def test_a_missing_file_fails_clearly(self, redact, tmp_path):
+        with pytest.raises(SystemExit):
+            redact.verify(tmp_path / "absent.json")

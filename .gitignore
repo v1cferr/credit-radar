@@ -23,6 +23,19 @@ data/personal/
 captures/
 screenshots/
 
+# Fixtures derived from a REAL report, even after redaction. This repository
+# is public, and a redacted credit report is still a document shaped by one
+# person's finances: how many institutions, how many months, how many
+# operations. Six separate leaks were found in one such file before it read
+# clean, which is reason enough not to rely on getting the seventh right.
+#
+# Parser fixtures are SYNTHETIC and written by hand from the documented
+# format (docs/providers/registrato.md), so they can be committed and
+# reviewed by anyone. This entry exists so a broad `git add` cannot sweep a
+# real one in, which is exactly how it happened once.
+backend/tests/fixtures/registrato/scr.json
+backend/tests/fixtures/**/from-real-report*
+
 # --- Python / backend -----------------------------------------------------
 __pycache__/
 *.py[cod]

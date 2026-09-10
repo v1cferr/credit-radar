@@ -94,116 +94,77 @@ prose. For a financial report the layout IS the format: a parser needs to
 know which column held the balance, and recovering that from reflowed text is
 guesswork.
 
-### Three ways this leaked, one of them in a real report
+### Every way this leaked
 
-The third was caught only by scanning the fixture generated from the real
-document, which is why that scan is a required step and not a formality.
-
-**A table's first row is not always column labels.** PDF extraction put the
-page header into it, so `Nome: ...` and `CPF/CNPJ: ...` sat in row zero of a
-table on all 31 pages. The tool copied header rows verbatim, on the
-assumption that they hold column names, and reported success on everything
-else: 192 amounts, 62 CPFs and 132 personal columns replaced, while the real
-name and CPF passed through 31 times each.
-
-Header cells are now redacted with the text-level rules, after being read for
-column labels and before being rewritten. Only text rules apply, because
-replacing a header cell wholesale would destroy the labels a parser needs.
-
-### Two more ways this nearly leaked
-
-Both were found by testing against a realistic synthetic PDF, and both would
-have produced a fixture that looked reviewed.
-
-**A PDF's text is compressed.** The original tool ran regexes over raw bytes,
-so it found nothing in a real PDF and reported "replaced: nothing matched"
-over a document that still held a CPF. Verified: in a Flate-compressed PDF
-the CPF is not present in the raw bytes at all. Binary formats are now
-refused unless extraction is explicitly requested.
-
-**A name in free text has no key.** The field-name rules only fire on a JSON
-key, and extracted PDF text has none: `Titular: Fulano De Teste` is a single
-string. The name and the birth date passed straight through while the tool
-reported success on the CPF and the amounts. Labelled values in text are now
-redacted by their label, and table columns by their header, because a cell
-holding a name carries no label of its own.
-
-There is deliberately **no general date rule**: `Data base: 06/2026` and
-`Vencimento: 01/03/2028` are the format a parser is written against, while a
-birth date is personal, and only the label separates them.
-
-### Five ways this leaked, found one at a time
-
-Every one of them was in a run that reported success. **A count of
-replacements is not evidence of a clean fixture.**
+Six, found one at a time, and **every one of them in a run that reported
+success**. A count of replacements is not evidence of a clean fixture.
 
 | Leak | Cause |
 | --- | --- |
-| CPF invisible in raw bytes | PDF text is Flate-compressed; regexes over bytes found nothing |
+| CPF invisible in raw bytes | PDF text is Flate-compressed, so regexes over bytes found nothing |
 | Name and birth date in free text | Field rules fire on a JSON key, and extracted text has none: `Titular: X` is one string |
 | Name and CPF, 31 times | A table's first row was copied verbatim; extraction had put the PAGE header there |
 | 154 amounts, 560 occurrences | The money pattern required a thousands separator, so everything under R$ 1.000 passed |
+| Institution names | Treated as non-personal until a real report made the point |
 | Name split into `VICTOR` / `FERREIRA` | The positioned-words list has no labels and no neighbours, and a search for the joined name misses it |
 
-Institution names were also treated as non-personal until a real report made
-the point: in someone's own credit report they say **who they owe**, which is
-private financial information. They are now replaced too. What survives is
-Banco Central's own taxonomy (`Cartão de crédito`, `Crédito pessoal - sem
-consignação em folha de pagamento`), which a parser maps and which names
-nobody.
+Institution names deserve the explanation. In someone's own credit report
+they say **who they owe**, which is private financial information with no
+place in a committed fixture. A parser needs a string in that position, not
+the name of a bank. What survives is Banco Central's own taxonomy
+(`Cartão de crédito`, `Crédito pessoal - sem consignação em folha de
+pagamento`), which a parser maps and which names nobody.
 
-The positioned-words list is protected by an **invariant rather than another
-pattern**: a token survives only if it appears in the already-redacted text,
-so whatever redaction removed cannot come back through the geometry.
+The last one was self-inflicted and is the most instructive: adding word
+geometry reintroduced a leak that had already been fixed, in a shape the
+existing check could not see. It is closed by an **invariant rather than
+another pattern**: a token survives only if it appears in the
+already-redacted text, so whatever redaction removed cannot return through
+the geometry. The pattern rules run on each token *before* that check,
+because filtering the raw token turned every amount into an opaque marker and
+destroyed the one thing the list exists for.
 
-The amount placeholder deliberately does **not** preserve the original's
-length. Matching the digit count would keep column alignment and would reveal
-the magnitude, which is the detail being removed.
+Two smaller decisions worth keeping:
+
+**The amount placeholder does not preserve length.** Matching the digit count
+would keep column alignment and would reveal the magnitude, which is the
+detail being removed.
+
+**There is no general date rule.** `Data base: 06/2026` and
+`Vencimento: 01/03/2028` are the format a parser is written against, while a
+birth date is personal, and only the label separates them.
 
 ### Verifying a fixture before committing it
 
-Not optional, and not by eye over 100 KB of JSON. Scan it:
+Not optional, and not by eye over half a megabyte of JSON:
 
 ```bash
-python - <<'EOF'
-import re, pathlib
-raw = pathlib.Path("tests/fixtures/registrato/scr.json").read_text()
-placeholders = {"000.000.000-00", "00.000.000/0000-00", "00000000000"}
-for label, pattern in {
-    "CPF":   r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b",
-    "CNPJ":  r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b",
-    "11dig": r"\b\d{11}\b",
-    "email": r"\b[\w.+-]+@[\w-]+\.[\w.]{2,}\b",
-    "CEP":   r"\b\d{5}-\d{3}\b",
-}.items():
-    real = {h for h in re.findall(pattern, raw)} - placeholders
-    print(f"{label}: {'clean' if not real else f'{len(real)} LEAK(S)'}")
-print("also grep for your own name and address by hand")
-EOF
+cd backend
+uv run python scripts/redact_capture.py --verify tests/fixtures/registrato/scr.json
 ```
 
-**Check the tokenized forms too.** A search for a joined name misses a name
-split across the positioned-words list, which is how one leak survived a scan
-that reported clean:
+A command rather than a snippet to paste, because a snippet carries a path
+relative to whichever directory the reader happened to be in, and getting
+that wrong looks like the fixture is missing rather than like the instruction
+was wrong.
 
-```bash
-python -c "
-import json
-d = json.load(open('tests/fixtures/registrato/scr.json'))
-caps = {w['text'] for p in d['pages'] for w in p['words']
-        if len(w['text']) >= 3 and w['text'] == w['text'].upper()}
-print(sorted(caps))"
-```
+It has two halves, deliberately separated:
 
-Every token that comes back should be a label, a placeholder, or Banco
-Central's vocabulary. A surname will stand out.
+**The pattern scan decides.** A CPF, CNPJ, e-mail, CEP, long digit run or
+decimal amount that is not a known placeholder fails the check, and the
+command exits non-zero.
 
-A count of replacements is not evidence of a clean fixture: the leak above
-happened in a run that reported 386 successful replacements.
+**The token listing does not decide, it reports.** Every upper-case word that
+is not a placeholder is printed for you to read, because only the person
+whose report this is can tell whether an upper-case word is a surname or a
+bank's trading name. Auto-classifying that would be the false assurance this
+tool exists to avoid. Month and year pairs are excluded: a token with no
+letters cannot be a name, and would only bury the ones that matter.
 
 The downloaded file's own name contains the CPF, so the fixture must not
-inherit it, and the PDF is worth deleting from `~/Downloads` once the fixture
-exists, since that directory is inside the backup.
+inherit it, and the PDF is worth deleting once the fixture exists, since
+`~/Downloads` is inside the backup.
+
 
 ## If the login ever needs automating
 

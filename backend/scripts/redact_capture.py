@@ -455,6 +455,107 @@ class Redactor:
         return node
 
 
+# Shapes that must never appear in a fixture unless they are a placeholder.
+LEAK_PATTERNS: dict[str, str] = {
+    "CPF": r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b",
+    "CNPJ": r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b",
+    "long digit run": r"\b\d{11,14}\b",
+    "decimal amount": r"(?<![\d,.])\d{1,3}(?:\.\d{3})*,\d{2}(?![\d])",
+    "email": r"\b[\w.+-]+@[\w-]+\.[\w.]{2,}\b",
+    "CEP": r"\b\d{5}-\d{3}\b",
+}
+
+KNOWN_PLACEHOLDERS = frozenset(
+    {
+        SYNTHETIC["cpf_formatted"],
+        SYNTHETIC["cnpj_formatted"],
+        SYNTHETIC["cpf_bare"],
+        SYNTHETIC["cnpj_bare"],
+        SYNTHETIC["email"],
+        SYNTHETIC["phone"],
+        SYNTHETIC_NAME,
+        SYNTHETIC_TEXT,
+        SYNTHETIC_INSTITUTION,
+        SYNTHETIC_TOKEN,
+        SYNTHETIC_DATE,
+        "1.234,56",
+    }
+)
+
+
+def verify(path: Path) -> int:
+    """Scan a fixture for anything that should not have survived redaction.
+
+    A command rather than a snippet to paste, because a snippet carries a
+    path relative to whichever directory the reader happened to be in, and
+    getting that wrong looks like the fixture is missing rather than like the
+    instruction was wrong.
+
+    Two halves, deliberately separated. The pattern scan DECIDES: an
+    identifier shape that is not a placeholder fails. The token listing does
+    NOT decide, it reports, because only the person whose report this is can
+    tell whether an upper-case word is a surname or a bank's trading name.
+    Auto-classifying it would be the kind of false assurance this tool exists
+    to avoid.
+    """
+    if not path.is_file():
+        _fail(f"{path} is not a file")
+
+    raw = path.read_text(encoding="utf-8")
+    print(f"verify: {path} ({len(raw)} bytes)")
+    print()
+
+    leaks = 0
+    print("  identifier shapes (a non-placeholder match is a leak):")
+    for label, pattern in LEAK_PATTERNS.items():
+        found = set(re.findall(pattern, raw))
+        real = found - KNOWN_PLACEHOLDERS
+        if real:
+            leaks += len(real)
+            shapes = sorted({re.sub(r"\d", "n", value) for value in real})[:3]
+            print(f"    {label:16} LEAK: {len(real)} distinct, shapes {shapes}")
+        else:
+            print(f"    {label:16} clean")
+
+    tokens: set[str] = set()
+    try:
+        document = json.loads(raw)
+    except json.JSONDecodeError:
+        tokens = set(re.findall(r"\b[^\s]{3,}\b", raw))
+    else:
+        for page in document.get("pages", []):
+            for word in page.get("words", []):
+                tokens.add(str(word.get("text", "")))
+        if not tokens:
+            tokens = set(re.findall(r"\b[^\s]{3,}\b", json.dumps(document)))
+
+    caps = sorted(
+        token
+        for token in tokens
+        if len(token) >= 3
+        and token == token.upper()
+        and re.search(r"[A-ZÁÂÃÀÉÊÍÓÔÕÚÜÇ]", token)
+        and token not in KNOWN_PLACEHOLDERS
+    )
+
+    print()
+    print(f"  upper-case tokens to READ, not to trust ({len(caps)}):")
+    for token in caps:
+        print(f"    {token}")
+    print()
+    print("    None of the above is judged by this tool. A label, a placeholder")
+    print("    or Banco Central vocabulary is expected; a surname is not, and")
+    print("    only you can tell the difference.")
+
+    print()
+    if leaks:
+        print(f"verify: {leaks} LEAK(S). Do not commit this fixture.")
+        return 1
+    print("verify: no identifier shapes survived. Read the token list above,")
+    print("        then decide whether to commit.")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="redact_capture",
@@ -468,6 +569,15 @@ def main() -> int:
         "source", type=Path, help="the real capture (JSON, CSV, text, or PDF with --pdf)"
     )
     parser.add_argument(
+        "--verify",
+        action="store_true",
+        help=(
+            "scan an already-generated fixture instead of creating one. "
+            "Reports identifier shapes that survived and lists upper-case "
+            "tokens for you to read."
+        ),
+    )
+    parser.add_argument(
         "--pdf",
         action="store_true",
         help=(
@@ -476,13 +586,20 @@ def main() -> int:
             "sees."
         ),
     )
-    parser.add_argument("--out", type=Path, required=True, help="where to write the fixture")
+    parser.add_argument(
+        "--out", type=Path, help="where to write the fixture (not used with --verify)"
+    )
     parser.add_argument("--force", action="store_true", help="overwrite the output if it exists")
     args = parser.parse_args()
+
+    if args.verify:
+        return verify(args.source)
 
     if not args.source.is_file():
         _fail(f"{args.source} is not a file")
     _reject_binary(args.source, pdf_allowed=args.pdf)
+    if args.out is None:
+        parser.error("--out is required unless --verify is given")
     if args.out.exists() and not args.force:
         _fail(f"{args.out} exists; pass --force to overwrite")
 
