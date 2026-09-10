@@ -65,7 +65,7 @@ export function IndicatorCard({
           {label.name}
           {latest ? <ProvenancePopover observation={latest} /> : null}
         </CardDescription>
-        <CardTitle className="text-2xl tabular-nums">
+        <CardTitle className="numeric text-2xl">
           {latest ? (
             formatRate(latest.value, latest.unit)
           ) : (
@@ -76,7 +76,7 @@ export function IndicatorCard({
         </CardTitle>
         {delta !== null && latest && previous ? (
           <CardAction>
-            <Badge variant="outline" className="gap-1 tabular-nums">
+            <Badge variant="outline" className="numeric gap-1">
               <TrendIcon delta={delta} />
               {formatDelta(latest.value, previous.value, latest.unit)}
             </Badge>
@@ -96,12 +96,12 @@ export function IndicatorCard({
         )}
 
         {collectionFailed ? (
-          <p className="flex items-center gap-1.5 text-xs text-destructive">
+          <p className="flex items-center gap-1.5 text-xs text-negative">
             <AlertTriangle className="size-3.5 shrink-0" />
             A última coleta falhou. Este valor pode estar desatualizado.
           </p>
         ) : isStale && lastRun ? (
-          <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
+          <p className="flex items-center gap-1.5 text-xs text-warning">
             <AlertTriangle className="size-3.5 shrink-0" />
             Sincronizado {formatRelativeTime(lastRun.finished_at, now)}
           </p>

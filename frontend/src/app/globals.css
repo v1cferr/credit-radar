@@ -4,11 +4,31 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Design tokens.
+ *
+ * The base palette is deliberately neutral: greys for structure, chroma
+ * reserved for meaning. In an application about someone's credit position,
+ * a coloured element should say something -- this value improved, this
+ * source failed, this figure is old -- and nothing else should compete
+ * with it.
+ *
+ * Financial state has its own token set (positive / negative / warning /
+ * informational / neutral) instead of raw Tailwind colours in components.
+ * Two reasons: a single place decides what "worse" looks like, and the
+ * dark theme is not an afterthought applied one `dark:` class at a time.
+ *
+ * Colour never carries meaning alone. Every use is paired with a sign, an
+ * icon or a word, because these readings must survive colour blindness and
+ * a greyscale print of a page someone is using to make a decision about
+ * money.
+ */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -39,6 +59,20 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
+  /* Financial state. `-subtle` is a background wash for badges and rows;
+   * the bare token is for text, icons and chart strokes. */
+  --color-positive: var(--positive);
+  --color-positive-subtle: var(--positive-subtle);
+  --color-negative: var(--negative);
+  --color-negative-subtle: var(--negative-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-informational: var(--informational);
+  --color-informational-subtle: var(--informational-subtle);
+  --color-neutral: var(--neutral);
+  --color-neutral-subtle: var(--neutral-subtle);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -67,12 +101,29 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
+
+  /* Financial state, light theme. Lightness is held low enough for these
+   * to pass contrast as text on --background and on their own wash. */
+  --positive: oklch(0.48 0.13 152);
+  --positive-subtle: oklch(0.96 0.03 152);
+  --negative: oklch(0.51 0.19 25);
+  --negative-subtle: oklch(0.96 0.03 25);
+  --warning: oklch(0.52 0.11 72);
+  --warning-subtle: oklch(0.96 0.04 82);
+  --informational: oklch(0.5 0.15 255);
+  --informational-subtle: oklch(0.96 0.03 255);
+  --neutral: oklch(0.556 0 0);
+  --neutral-subtle: oklch(0.97 0 0);
+
+  /* Charts. Five hues that stay separable from each other, ordered so the
+   * first two -- the pair most often compared -- are the furthest apart. */
+  --chart-1: oklch(0.52 0.16 255);
+  --chart-2: oklch(0.58 0.13 172);
+  --chart-3: oklch(0.6 0.14 62);
+  --chart-4: oklch(0.52 0.18 320);
+  --chart-5: oklch(0.5 0.13 145);
+
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -102,19 +153,48 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+
+  /* Financial state, dark theme. Lifted in lightness and cut in chroma:
+   * the light-theme values read as muddy on a dark ground. The washes are
+   * near-opaque tints of the card, not transparencies, so a badge sitting
+   * on a card and one sitting on the page look the same. */
+  --positive: oklch(0.76 0.15 152);
+  --positive-subtle: oklch(0.28 0.05 152);
+  --negative: oklch(0.72 0.17 25);
+  --negative-subtle: oklch(0.29 0.06 25);
+  --warning: oklch(0.79 0.14 78);
+  --warning-subtle: oklch(0.3 0.05 78);
+  --informational: oklch(0.72 0.13 255);
+  --informational-subtle: oklch(0.29 0.05 255);
+  --neutral: oklch(0.708 0 0);
+  --neutral-subtle: oklch(0.269 0 0);
+
+  --chart-1: oklch(0.7 0.15 255);
+  --chart-2: oklch(0.75 0.12 172);
+  --chart-3: oklch(0.78 0.13 62);
+  --chart-4: oklch(0.7 0.16 320);
+  --chart-5: oklch(0.72 0.13 145);
+
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.985 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+/*
+ * Figures that are meant to be compared down a column, or that change in
+ * place, are set in tabular numerals: proportional digits make a value
+ * jitter sideways as it updates and stop a column of amounts from lining
+ * up. The slight negative tracking counters how airy tabular figures look
+ * at display sizes.
+ */
+@utility numeric {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.011em;
 }
 
 @layer base {

@@ -23,6 +23,20 @@ const UNIT_SUFFIX: Record<Unit, string> = {
 };
 
 /**
+ * Suffix for a *difference* between two values of a unit.
+ *
+ * Rates in percent per year, month or day all collapse to percentage
+ * points, because the interval between two of them is not itself a rate
+ * per unit of time.
+ */
+const DELTA_SUFFIX: Record<Unit, string> = {
+  percent_per_year: " p.p.",
+  percent_per_month: " p.p.",
+  percent_per_day: " p.p.",
+  index_points: " pts",
+};
+
+/**
  * Format a decimal string for display, preserving the published scale.
  *
  * Formatting is driven by the number of decimals present in the source
@@ -45,6 +59,28 @@ export function formatDecimal(value: string): string {
 /** Format a rate with its unit, e.g. "14,00% a.a.". */
 export function formatRate(value: string, unit: Unit): string {
   return `${formatDecimal(value)}${UNIT_SUFFIX[unit]}`;
+}
+
+/**
+ * Format a monetary amount as Brazilian currency, e.g. "R$ 1.250,00".
+ *
+ * Takes the string the API sends, never a number. Two decimals minimum
+ * because that is how an amount in reais is written even when the source
+ * published none, and more are kept if the source published more rather
+ * than rounding away a scale it chose to state.
+ */
+export function formatCurrency(value: string): string {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return value;
+
+  const published = value.includes(".") ? value.split(".")[1].length : 0;
+
+  return new Intl.NumberFormat(LOCALE, {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: Math.max(2, published),
+  }).format(parsed);
 }
 
 /** Format an ISO date (YYYY-MM-DD) as dd/MM/yyyy. */
@@ -104,7 +140,12 @@ export function formatRelativeTime(
 }
 
 /**
- * Difference between two decimal strings, formatted with a sign.
+ * Difference between two decimal strings, formatted with its sign.
+ *
+ * The unit of a difference is not the unit of the values. Two rates in
+ * "% a.a." differ by percentage *points*: 15,00% a.a. against 14,75% a.a.
+ * is +0,25 p.p., and calling that "+0,25% a.a." would be a different claim
+ * -- a quarter of one percent of the rate, which is 0,0369 p.p.
  *
  * Parsed to Number only because the result is a display delta, not a stored
  * value. Anything persisted or compared for money stays a string end to end.
@@ -120,5 +161,22 @@ export function formatDelta(current: string, previous: string, unit: Unit): stri
     signDisplay: "exceptZero",
   }).format(difference);
 
-  return `${formatted}${UNIT_SUFFIX[unit].replace("% ", " ")}`;
+  return `${formatted}${DELTA_SUFFIX[unit]}`;
+}
+
+/**
+ * Which way a value moved, for choosing an icon and a colour.
+ *
+ * Direction only. Whether up is good is a question about the indicator, not
+ * about the arithmetic: a falling Selic is good news for a borrower and a
+ * rising one is not, while for a credit score the reverse holds. The caller
+ * decides, because only the caller knows what the number means.
+ */
+export function deltaDirection(
+  current: string,
+  previous: string,
+): "up" | "down" | "flat" {
+  const difference = Number(current) - Number(previous);
+  if (!Number.isFinite(difference) || difference === 0) return "flat";
+  return difference > 0 ? "up" : "down";
 }
