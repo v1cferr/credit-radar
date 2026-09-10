@@ -78,4 +78,11 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 markers = [
     "integration: tests that require a live PostgreSQL database",
+    "live: tests that contact a real external provider over the network",
 ]
+# `live` tests are excluded by default. The default suite must never depend on
+# Banco Central being up, on a rate limit, or on a DOM that changed
+# overnight: a suite that fails for reasons outside the repository stops being
+# a signal. Run them deliberately with `uv run pytest -m live`, which
+# overrides this because pytest honours the last -m it is given.
+addopts = ["-m", "not live"]
