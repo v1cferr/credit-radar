@@ -130,3 +130,45 @@ class TestReporting:
         # nothing, which may mean the document is clean or may mean the rules
         # do not fit its shape.
         assert redactor.counts == {}
+
+
+class TestBinaryRefusal:
+    """Formats whose text the rules cannot see must be refused, not passed."""
+
+    def test_a_pdf_is_refused(self, redact, tmp_path):
+        # The dangerous case. A PDF keeps its text in compressed streams, so
+        # these rules find nothing and would report "nothing matched" over a
+        # document that still holds a CPF. A false clean bill of health on a
+        # credit report is worse than no tool, because the output looks
+        # reviewed.
+        source = tmp_path / "report.pdf"
+        source.write_bytes(b"%PDF-1.7\n binary junk \x00\x01")
+
+        with pytest.raises(SystemExit):
+            redact._reject_binary(source)
+
+    def test_a_zip_or_xlsx_is_refused(self, redact, tmp_path):
+        source = tmp_path / "report.xlsx"
+        source.write_bytes(b"PK\x03\x04 rest")
+
+        with pytest.raises(SystemExit):
+            redact._reject_binary(source)
+
+    def test_plain_text_passes(self, redact, tmp_path):
+        source = tmp_path / "report.csv"
+        source.write_text("cpf;valor\n529.982.247-25;1.000,00\n", encoding="utf-8")
+
+        redact._reject_binary(source)  # must not raise
+
+    def test_json_passes(self, redact, tmp_path):
+        source = tmp_path / "report.json"
+        source.write_text('{"cpf": "529.982.247-25"}', encoding="utf-8")
+
+        redact._reject_binary(source)  # must not raise
+
+    def test_every_refused_signature_is_documented(self, redact):
+        # A signature with no label would produce a refusal that does not say
+        # what the file was or what to do instead.
+        for signature, label in redact.BINARY_SIGNATURES.items():
+            assert isinstance(signature, bytes)
+            assert label

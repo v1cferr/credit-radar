@@ -102,6 +102,36 @@ SYNTHETIC_DATE = "1990-01-01"
 SYNTHETIC_TEXT = "VALOR SINTETICO"
 
 
+BINARY_SIGNATURES: dict[bytes, str] = {
+    b"%PDF": "PDF",
+    b"PK\x03\x04": "ZIP or XLSX",
+    b"\xd0\xcf\x11\xe0": "legacy Office document",
+}
+"""Formats whose text these rules CANNOT see, and must not pretend to.
+
+A PDF keeps its text in compressed content streams, so a regex over the raw
+bytes finds nothing and the tool would report "nothing matched" over a
+document that still contains a CPF. A false clean bill of health on a credit
+report is worse than no tool at all, because the output looks reviewed.
+
+Refused loudly instead. Extracting text first is the fix, and it has to be a
+deliberate step with its own review, not an accident of running this.
+"""
+
+
+def _reject_binary(path: Path) -> None:
+    head = path.read_bytes()[:8]
+    for signature, label in BINARY_SIGNATURES.items():
+        if head.startswith(signature):
+            _fail(
+                f"{path} looks like a {label}. These rules only see plain text, "
+                f"and a {label} keeps its text compressed, so this would report "
+                f"'nothing matched' over a document that still holds a CPF. "
+                f"Export the report as CSV, JSON or text if the source offers "
+                f"it; otherwise extract the text first and redact that."
+            )
+
+
 def _fail(message: str) -> NoReturn:
     print(f"redact_capture: {message}", file=sys.stderr)
     raise SystemExit(1)
@@ -193,6 +223,7 @@ def main() -> int:
 
     if not args.source.is_file():
         _fail(f"{args.source} is not a file")
+    _reject_binary(args.source)
     if args.out.exists() and not args.force:
         _fail(f"{args.out} exists; pass --force to overwrite")
 
