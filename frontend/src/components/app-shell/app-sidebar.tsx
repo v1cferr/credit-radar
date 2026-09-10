@@ -33,7 +33,7 @@ export function AppSidebar() {
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">CreditRadar</span>
                 <span className="truncate text-xs text-muted-foreground">
-                  Personal credit intelligence
+                  Inteligência de crédito pessoal
                 </span>
               </div>
             </SidebarMenuButton>
@@ -73,8 +73,8 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <p className="px-2 text-[0.65rem] leading-snug text-muted-foreground group-data-[collapsible=icon]:hidden">
-          Observes and explains. Never accepts an agreement, moves money or
-          takes credit.
+          Observa e explica. Nunca aceita acordo, movimenta dinheiro nem
+          contrata crédito.
         </p>
       </SidebarFooter>
     </Sidebar>

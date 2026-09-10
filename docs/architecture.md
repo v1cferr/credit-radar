@@ -150,6 +150,27 @@ about fifty lines. Once debts, scores, exposure and financing exist it starts
 paying for itself, and the document is already served at
 `/api/v1/openapi.json`.
 
+## Interface language
+
+The UI is pt-BR; everything else in the repository is en-US. That split is
+the exception the language rule explicitly allows for user-facing
+localization, and it is drawn at what reaches a screen: page copy, titles,
+metadata and accessible labels are Portuguese, while code, comments, docs and
+commit messages are not.
+
+The backend's `name` and `description` for an indicator are en-US domain
+documentation and are deliberately not rendered. What the user should see an
+indicator called is a presentation concern and lives in
+`frontend/src/lib/labels.ts`, keyed by the stable internal indicator code,
+which is what that code exists for. The maps are typed as exhaustive
+`Record`s over the domain enums, so adding an indicator, unit or frequency
+fails to compile until it has a label rather than putting a raw enum value on
+screen.
+
+No i18n library: there is one locale, and a framework for it would be
+machinery without a second case to justify it. A library earns its place the
+day a second language does.
+
 ## Known limitations
 
 - **Chart payload size.** The market page sends the full daily Selic series

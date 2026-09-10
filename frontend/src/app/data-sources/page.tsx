@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/table";
 import { getMarketSummary } from "@/lib/api/market";
 import { formatDateTime, formatRelativeTime } from "@/lib/format";
+import { COLLECTION_STATUS_LABELS, INDICATOR_LABELS } from "@/lib/labels";
 import type { CollectionStatus } from "@/lib/api/types";
 
 /** Providers in the planned architecture, including the unbuilt ones.
@@ -37,36 +38,38 @@ import type { CollectionStatus } from "@/lib/api/types";
 const PLANNED_PROVIDERS = [
   {
     name: "Banco Central — SGS",
-    kind: "Official public API",
-    status: "Implemented",
-    note: "Market and macroeconomic series. No authentication, no personal data.",
+    kind: "API pública oficial",
+    implemented: true,
+    note: "Séries de mercado e macroeconômicas. Sem autenticação e sem dado pessoal.",
   },
   {
     name: "Banco Central — SCR / Registrato",
-    kind: "Authenticated report",
-    status: "Not implemented",
-    note: "Requires gov.br authentication. Will need human-assisted sign-in.",
+    kind: "Relatório autenticado",
+    implemented: false,
+    note: "Exige login gov.br, então vai precisar de autenticação assistida por uma pessoa.",
   },
   {
     name: "Serasa",
-    kind: "Authenticated account",
-    status: "Not implemented",
-    note: "Score, negative records and offers. Own scale, kept separate from other bureaus.",
+    kind: "Conta autenticada",
+    implemented: false,
+    note: "Score, negativações e propostas. Escala própria, mantida separada dos outros bureaus.",
   },
   {
     name: "Quod / SPC / Equifax",
-    kind: "Authenticated account",
-    status: "Not implemented",
-    note: "Independent methodologies. Never merged into a single synthetic score.",
+    kind: "Conta autenticada",
+    implemented: false,
+    note: "Metodologias independentes. Nunca combinadas em um score único inventado.",
   },
 ];
 
 function StatusBadge({ status }: { status: CollectionStatus }) {
+  const label = COLLECTION_STATUS_LABELS[status];
+
   if (status === "success") {
     return (
       <Badge variant="secondary" className="gap-1">
         <CheckCircle2 className="size-3" />
-        Healthy
+        {label}
       </Badge>
     );
   }
@@ -74,14 +77,14 @@ function StatusBadge({ status }: { status: CollectionStatus }) {
     return (
       <Badge variant="outline" className="gap-1">
         <CircleSlash className="size-3" />
-        No data
+        {label}
       </Badge>
     );
   }
   return (
     <Badge variant="destructive" className="gap-1">
       <XCircle className="size-3" />
-      Failed
+      {label}
     </Badge>
   );
 }
@@ -95,18 +98,18 @@ export default async function DataSourcesPage() {
   return (
     <>
       <PageHeader
-        title="Data sources"
-        description="Where the data comes from, and whether it is current"
+        title="Fontes de dados"
+        description="De onde vem cada informação, e se ela está atual"
       />
 
       <div className="flex flex-col gap-6 p-4 md:p-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Collection status</CardTitle>
+            <CardTitle className="text-sm">Situação da coleta</CardTitle>
             <CardDescription>
-              Result of the most recent collection attempt for each series. A
-              source whose last attempt failed is shown as failed even if it
-              still holds older values.
+              Resultado da última tentativa de coleta de cada série. Uma fonte
+              cuja última tentativa falhou aparece como falha mesmo que ainda
+              guarde valores antigos.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -117,18 +120,18 @@ export default async function DataSourcesPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Indicator</TableHead>
-                      <TableHead>Series</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last synchronized</TableHead>
-                      <TableHead className="text-right">Observations</TableHead>
+                      <TableHead>Indicador</TableHead>
+                      <TableHead>Série</TableHead>
+                      <TableHead>Situação</TableHead>
+                      <TableHead>Última sincronização</TableHead>
+                      <TableHead className="text-right">Observações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {summary.data.indicators.map((entry) => (
                       <TableRow key={entry.indicator.code}>
                         <TableCell className="font-medium">
-                          {entry.indicator.name}
+                          {INDICATOR_LABELS[entry.indicator.code].name}
                         </TableCell>
                         <TableCell className="font-mono text-xs">
                           {entry.latest?.provenance.source_reference ?? "—"}
@@ -137,7 +140,7 @@ export default async function DataSourcesPage() {
                           {entry.last_run ? (
                             <StatusBadge status={entry.last_run.status} />
                           ) : (
-                            <Badge variant="outline">Never collected</Badge>
+                            <Badge variant="outline">Nunca coletada</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-xs">
@@ -163,13 +166,13 @@ export default async function DataSourcesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Integration surface</CardTitle>
+            <CardTitle className="text-sm">Superfície de integração</CardTitle>
             <CardDescription>
-              Sources are integrated in order of stability: official API,
-              structured export, downloadable report, then authenticated
-              browser automation only where nothing better exists. Security
-              mechanisms such as CAPTCHA, MFA and gov.br sign-in are never
-              bypassed.
+              As fontes são integradas por ordem de estabilidade: API oficial,
+              exportação estruturada, relatório para download e, só onde não
+              existe nada melhor, automação de navegador autenticada.
+              Mecanismos de segurança como CAPTCHA, MFA e login gov.br nunca
+              são burlados.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -177,10 +180,10 @@ export default async function DataSourcesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Integration</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Notes</TableHead>
+                    <TableHead>Fonte</TableHead>
+                    <TableHead>Integração</TableHead>
+                    <TableHead>Situação</TableHead>
+                    <TableHead>Observações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -190,13 +193,11 @@ export default async function DataSourcesPage() {
                       <TableCell className="text-xs">{provider.kind}</TableCell>
                       <TableCell>
                         <Badge
-                          variant={
-                            provider.status === "Implemented"
-                              ? "secondary"
-                              : "outline"
-                          }
+                          variant={provider.implemented ? "secondary" : "outline"}
                         >
-                          {provider.status}
+                          {provider.implemented
+                            ? "Implementada"
+                            : "Não implementada"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">

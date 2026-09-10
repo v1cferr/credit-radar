@@ -21,26 +21,16 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getIndicatorHistory, getMarketSummary } from "@/lib/api/market";
-import { UNIT_LABEL } from "@/lib/format";
+import { FREQUENCY_LABELS, INDICATOR_LABELS, UNIT_LABELS } from "@/lib/labels";
 import type { IndicatorCode } from "@/lib/api/types";
 
 /** Charted series, and how far back each is worth showing.
  *
  * The Selic target is a daily series, so a shorter window keeps the chart
  * readable; the credit rates are monthly and need years to show a trend. */
-const CHARTED: Array<{ code: IndicatorCode; from: string; caption: string }> = [
-  {
-    code: "SELIC_TARGET",
-    from: "2024-01-01",
-    caption:
-      "Set by the Copom and published ahead of the dates it applies to, so the series extends past today.",
-  },
-  {
-    code: "VEHICLE_FINANCING_RATE_PF",
-    from: "2023-09-01",
-    caption:
-      "Average rate on non-earmarked vehicle credit for individuals. The benchmark for a vehicle financing offer.",
-  },
+const CHARTED: Array<{ code: IndicatorCode; from: string }> = [
+  { code: "SELIC_TARGET", from: "2024-01-01" },
+  { code: "VEHICLE_FINANCING_RATE_PF", from: "2023-09-01" },
 ];
 
 export default async function MarketPage() {
@@ -58,8 +48,8 @@ export default async function MarketPage() {
   return (
     <>
       <PageHeader
-        title="Market"
-        description="Official Banco Central series for the Brazilian credit market"
+        title="Mercado"
+        description="Séries oficiais do Banco Central para o mercado de crédito brasileiro"
       />
 
       <div className="flex flex-col gap-6 p-4 md:p-6">
@@ -80,6 +70,7 @@ export default async function MarketPage() {
             <section className="space-y-4">
               {CHARTED.map((entry, index) => {
                 const result = series[index];
+                const label = INDICATOR_LABELS[entry.code];
                 const indicator = summary.data.indicators.find(
                   (item) => item.indicator.code === entry.code,
                 )?.indicator;
@@ -87,17 +78,15 @@ export default async function MarketPage() {
                 return (
                   <Card key={entry.code}>
                     <CardHeader>
-                      <CardTitle className="text-sm">
-                        {indicator?.name ?? entry.code}
-                      </CardTitle>
-                      <CardDescription>{entry.caption}</CardDescription>
+                      <CardTitle className="text-sm">{label.name}</CardTitle>
+                      <CardDescription>{label.description}</CardDescription>
                       {indicator ? (
                         <div className="flex flex-wrap gap-1.5 pt-1">
                           <Badge variant="secondary" className="text-[0.65rem]">
-                            {UNIT_LABEL[indicator.unit]}
+                            {UNIT_LABELS[indicator.unit]}
                           </Badge>
                           <Badge variant="outline" className="text-[0.65rem]">
-                            {indicator.frequency.replace("_", " ")}
+                            {FREQUENCY_LABELS[indicator.frequency]}
                           </Badge>
                         </div>
                       ) : null}
@@ -108,8 +97,8 @@ export default async function MarketPage() {
                       ) : result.data.observations.length === 0 ? (
                         <EmptyState
                           message={
-                            "Nothing has been collected for this indicator yet. " +
-                            "Trigger a collection through the API to populate the series."
+                            "Nada foi coletado para este indicador ainda. " +
+                            "Rode uma coleta para preencher a série."
                           }
                         />
                       ) : (
@@ -125,15 +114,15 @@ export default async function MarketPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm">
-                    Mortgage rates are two different series
+                    Crédito imobiliário são duas séries diferentes
                   </CardTitle>
                   <CardDescription>
-                    Real-estate financing at market rates and under the
-                    regulated (CMN / FGTS-linked) regime are published
-                    separately and differ by several percentage points. An
-                    offer must be compared against the regime it belongs to;
-                    benchmarking against the wrong one makes an ordinary offer
-                    look expensive, or an expensive one look competitive.
+                    O financiamento imobiliário a taxas de mercado e o sob
+                    taxas reguladas (regime CMN / FGTS) são publicados
+                    separadamente e diferem em vários pontos percentuais. Uma
+                    proposta precisa ser comparada com o regime a que pertence:
+                    usar o parâmetro errado faz uma proposta comum parecer
+                    caríssima, ou uma caríssima parecer competitiva.
                   </CardDescription>
                 </CardHeader>
               </Card>

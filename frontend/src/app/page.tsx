@@ -42,28 +42,29 @@ export default async function OverviewPage() {
   return (
     <>
       <PageHeader
-        title="Overview"
-        description="What is currently known about the credit position"
+        title="Visão geral"
+        description="O que se sabe hoje sobre a posição de crédito"
       />
 
       <div className="flex flex-col gap-6 p-4 md:p-6">
         <Alert>
           <ShieldQuestion />
-          <AlertTitle>Personal credit data is not connected yet</AlertTitle>
+          <AlertTitle>Dados pessoais de crédito ainda não conectados</AlertTitle>
           <AlertDescription>
-            Only public Banco Central market data is collected at this stage.
-            Scores, debts, negative records and credit exposure require
-            authenticated providers that are not implemented yet, so no figure
-            for them is shown anywhere in this dashboard.
+            Nesta etapa só há coleta de dados públicos de mercado do Banco
+            Central. Scores, dívidas, negativações e exposição de crédito
+            dependem de provedores autenticados que ainda não existem, então
+            nenhum número sobre eles é exibido em lugar nenhum deste painel.
           </AlertDescription>
         </Alert>
 
         <section className="space-y-3">
           <div>
-            <h2 className="text-sm font-semibold">Market conditions</h2>
+            <h2 className="text-sm font-semibold">Condições de mercado</h2>
             <p className="text-xs text-muted-foreground">
-              Official Banco Central series. These set the benchmark for
-              judging whether a financing offer is competitive.
+              Séries oficiais do Banco Central. São elas que definem o
+              parâmetro para julgar se uma proposta de financiamento está
+              competitiva.
             </p>
           </div>
 
@@ -86,30 +87,30 @@ export default async function OverviewPage() {
         <section className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Credit profile</CardTitle>
+              <CardTitle className="text-sm">Perfil de crédito</CardTitle>
               <CardDescription>
-                Scores, negative records and inquiries per bureau
+                Scores, negativações e consultas ao CPF por bureau
               </CardDescription>
             </CardHeader>
             <CardContent>
               <NotImplementedState
-                feature="Credit profile"
-                requires="an authenticated bureau provider, keeping each bureau's own scale and history separate"
+                feature="O perfil de crédito"
+                requires="um provedor autenticado de bureau, mantendo separadas a escala e o histórico próprios de cada um"
               />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Debts and settlement</CardTitle>
+              <CardTitle className="text-sm">Dívidas e acordos</CardTitle>
               <CardDescription>
-                Outstanding debts and the best observed settlement conditions
+                Dívidas em aberto e as melhores condições de acordo observadas
               </CardDescription>
             </CardHeader>
             <CardContent>
               <NotImplementedState
-                feature="Debt intelligence"
-                requires="debt discovery across bureaus, creditors and negotiation platforms"
+                feature="A inteligência de dívidas"
+                requires="descoberta de dívidas em bureaus, credores e plataformas de negociação"
               />
             </CardContent>
           </Card>
@@ -117,13 +118,13 @@ export default async function OverviewPage() {
 
         <Alert variant="destructive">
           <AlertTriangle />
-          <AlertTitle>CreditRadar never acts on your behalf</AlertTitle>
+          <AlertTitle>O CreditRadar nunca age em seu nome</AlertTitle>
           <AlertDescription>
-            This application observes, normalizes and explains. It does not
-            accept settlement agreements, generate payments, authorize
-            transactions, request loans or open financial products. Any
-            operation that creates a financial obligation is yours to perform,
-            outside this system.
+            Esta aplicação observa, normaliza e explica. Ela não aceita
+            acordos, não gera pagamentos, não autoriza transações, não
+            solicita empréstimos e não abre produtos financeiros. Qualquer
+            operação que crie uma obrigação financeira é feita por você, fora
+            deste sistema.
           </AlertDescription>
         </Alert>
       </div>

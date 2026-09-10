@@ -8,6 +8,9 @@
  * `implemented` is honest metadata: the navigation shows the whole intended
  * product, and marks what does not exist yet instead of hiding it or
  * pretending it works.
+ *
+ * Titles and the `requires` text are pt-BR because they reach the screen.
+ * Identifiers, hrefs and comments stay en-US.
  */
 
 import {
@@ -42,10 +45,10 @@ export interface NavGroup {
 
 export const NAVIGATION: NavGroup[] = [
   {
-    label: "Summary",
+    label: "Resumo",
     items: [
       {
-        title: "Overview",
+        title: "Visão geral",
         href: "/",
         icon: LayoutDashboard,
         implemented: true,
@@ -53,7 +56,7 @@ export const NAVIGATION: NavGroup[] = [
     ],
   },
   {
-    label: "Credit profile",
+    label: "Perfil de crédito",
     items: [
       {
         title: "Scores",
@@ -61,101 +64,103 @@ export const NAVIGATION: NavGroup[] = [
         icon: BarChart3,
         implemented: false,
         requires:
-          "an authenticated bureau provider (Serasa, Quod, SPC or Equifax), each keeping its own scale and history",
+          "um provedor autenticado de bureau (Serasa, Quod, SPC ou Equifax), cada um mantendo sua própria escala e seu próprio histórico",
       },
       {
-        title: "Negative records",
+        title: "Negativações",
         href: "/negative-records",
         icon: FileWarning,
         implemented: false,
-        requires: "a bureau provider that reports active negative records",
+        requires:
+          "um provedor de bureau que informe as negativações ativas",
       },
       {
-        title: "Credit inquiries",
+        title: "Consultas ao CPF",
         href: "/inquiries",
         icon: Activity,
         implemented: false,
-        requires: "a bureau provider that reports CPF inquiries",
+        requires: "um provedor de bureau que informe as consultas ao CPF",
       },
     ],
   },
   {
-    label: "Obligations",
+    label: "Obrigações",
     items: [
       {
-        title: "Debts",
+        title: "Dívidas",
         href: "/debts",
         icon: CircleDollarSign,
         implemented: false,
         requires:
-          "debt discovery across bureaus, creditors and negotiation platforms, with creditor and contract normalization",
+          "descoberta de dívidas em bureaus, credores e plataformas de negociação, com normalização de credor e contrato",
       },
       {
-        title: "Settlement offers",
+        title: "Propostas de acordo",
         href: "/settlement-offers",
         icon: Handshake,
         implemented: false,
         requires:
-          "offer collection from several platforms, so the same debt can be compared across them over time",
+          "coleta de propostas em várias plataformas, para que a mesma dívida possa ser comparada entre elas ao longo do tempo",
       },
       {
-        title: "Credit exposure",
+        title: "Exposição de crédito",
         href: "/exposure",
         icon: Landmark,
         implemented: false,
-        requires: "the Banco Central SCR / Registrato provider",
+        requires: "o provedor do SCR / Registrato do Banco Central",
       },
     ],
   },
   {
-    label: "Decisions",
+    label: "Decisões",
     items: [
       {
-        title: "Market",
+        title: "Mercado",
         href: "/market",
         icon: BarChart3,
         implemented: true,
       },
       {
-        title: "Financing",
+        title: "Financiamento",
         href: "/financing",
         icon: Calculator,
         implemented: false,
         requires:
-          "the amortization engines (SAC and Price) and CET calculation, to compare an offer against market rates",
+          "os motores de amortização (SAC e Price) e o cálculo do CET, para comparar uma proposta com as taxas de mercado",
       },
       {
-        title: "Readiness",
+        title: "Prontidão",
         href: "/readiness",
         icon: Gauge,
         implemented: false,
         requires:
-          "score, debt, exposure and income data, since a readiness indicator built on any one of them alone would be misleading",
+          "dados de score, dívidas, exposição e renda, já que um indicador de prontidão construído sobre qualquer um deles isolado seria enganoso",
       },
       {
-        title: "Goals",
+        title: "Objetivos",
         href: "/goals",
         icon: Target,
         implemented: false,
-        requires: "financial goal modelling",
+        requires: "a modelagem de objetivos financeiros",
       },
     ],
   },
   {
-    label: "Audit",
+    label: "Auditoria",
     items: [
       {
-        title: "Data sources",
+        title: "Fontes de dados",
         href: "/data-sources",
         icon: Database,
         implemented: true,
       },
       {
-        title: "History",
+        title: "Histórico",
         href: "/history",
         icon: History,
         implemented: false,
-        requires: "a credit event timeline across the collected series",
+        requires:
+          "uma linha do tempo de eventos de crédito sobre as séries coletadas",
       },
     ],
   },

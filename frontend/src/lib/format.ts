@@ -1,15 +1,13 @@
 /**
  * Display formatting.
  *
- * A deliberate split, documented because it looks inconsistent otherwise:
- * application text (navigation, labels, headings) is en-US per the
- * repository language rule, while *numbers and rate notation* follow
- * Brazilian convention -- "14,00% a.a." rather than "14.00% p.a.".
+ * The interface is pt-BR, so numbers, dates and rate notation all follow
+ * Brazilian convention: "14,00% a.a." and "16/09/2026". Keeping the figures
+ * in the notation their source publishes also makes them checkable against
+ * that source without mental re-punctuation.
  *
- * The reason is that these are Brazilian financial figures published in that
- * notation, and re-punctuating them makes them harder to check against the
- * source they came from. The application speaks English; the data is shown
- * the way its market writes it.
+ * The repository's code, comments and documentation stay en-US. Only what
+ * reaches the screen is translated.
  */
 
 import type { Unit } from "@/lib/api/types";
@@ -22,14 +20,6 @@ const UNIT_SUFFIX: Record<Unit, string> = {
   percent_per_month: "% a.m.",
   percent_per_day: "% a.d.",
   index_points: " pts",
-};
-
-/** Human-readable name of a unit, for tooltips and legends. */
-export const UNIT_LABEL: Record<Unit, string> = {
-  percent_per_year: "percent per year",
-  percent_per_month: "percent per month",
-  percent_per_day: "percent per day",
-  index_points: "index points",
 };
 
 /**
@@ -76,7 +66,7 @@ export function formatDateTime(isoTimestamp: string): string {
 }
 
 /**
- * Describe how long ago a timestamp was, e.g. "2 hours ago".
+ * Describe how long ago a timestamp was, e.g. "há 2 horas".
  *
  * Used to make staleness visible: a source last synchronized nine days ago
  * must not look as current as one synchronized this morning.
@@ -93,8 +83,8 @@ export function formatRelativeTime(
 
   const seconds = Math.round((now - then) / 1000);
 
-  if (seconds < 0) return "in the future";
-  if (seconds < 60) return "just now";
+  if (seconds < 0) return "no futuro";
+  if (seconds < 60) return "agora mesmo";
 
   const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
     ["minute", 60],
@@ -109,7 +99,7 @@ export function formatRelativeTime(
     if (seconds >= unit[1]) chosen = unit;
   }
 
-  const formatter = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  const formatter = new Intl.RelativeTimeFormat(LOCALE, { numeric: "auto" });
   return formatter.format(-Math.floor(seconds / chosen[1]), chosen[0]);
 }
 

@@ -18,7 +18,7 @@ export function PlannedPage({ href }: { href: string }) {
 
   return (
     <>
-      <PageHeader title={item.title} description="Planned section" />
+      <PageHeader title={item.title} description="Seção planejada" />
       <div className="p-4 md:p-6">
         <NotImplementedState
           feature={item.title}

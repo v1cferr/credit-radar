@@ -125,13 +125,25 @@ browser profiles as secrets.
 - Show provenance: source, series, reference date, collection time.
 - Show staleness and failed collections. Never present a stale or failed
   source as current.
-- Application text is en-US. Numbers and rate notation follow Brazilian
-  convention (`14,00% a.a.`), because that is how the source publishes them.
+- **The interface is pt-BR.** This is the one exception to the en-US rule
+  below, and it is the exception that rule names: an explicit product
+  requirement for user-facing localization. Everything a user reads is
+  Portuguese, including accessible labels (`aria-label`, `sr-only`), page
+  titles and metadata. Numbers, dates and rate notation follow Brazilian
+  convention (`14,00% a.a.`, `16/09/2026`).
+- **Nothing else is pt-BR.** Code, identifiers, comments, documentation,
+  commit messages and Jira technical comments stay en-US.
+- Domain `name` and `description` from the API are NOT rendered: they are
+  en-US domain documentation. Presentation labels live in
+  `frontend/src/lib/labels.ts`, keyed by the stable internal code and typed
+  as exhaustive Records, so a new indicator fails to compile until it has a
+  label instead of leaking a raw enum value onto the screen.
 
 ## Working rules
 
 - **Everything in en-US**: code, comments, docs, commit messages, technical
-  names, Jira technical comments.
+  names, Jira technical comments. The sole exception is user-facing interface
+  copy, which is pt-BR (see the UI rules above).
 - **Commit incrementally**, one coherent unit per commit. Never a single
   large commit at the end.
 - **Never** add `Co-authored-by:` or attribute commits to Claude, Anthropic,

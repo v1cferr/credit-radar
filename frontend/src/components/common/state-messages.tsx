@@ -5,6 +5,8 @@
  * data says it has no data; a card whose provider does not exist yet says
  * so. Rendering a zero or a placeholder number in either case would make the
  * UI look authoritative about something it does not know.
+ *
+ * Copy is pt-BR; identifiers and comments are en-US.
  */
 
 import { AlertCircle, Database, PlugZap, Inbox } from "lucide-react";
@@ -12,7 +14,7 @@ import { AlertCircle, Database, PlugZap, Inbox } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function ErrorState({
-  title = "Could not load data",
+  title = "Não foi possível carregar os dados",
   message,
 }: {
   title?: string;
@@ -28,7 +30,7 @@ export function ErrorState({
 }
 
 export function EmptyState({
-  title = "No observations yet",
+  title = "Nenhuma observação ainda",
   message,
 }: {
   title?: string;
@@ -60,12 +62,14 @@ export function NotImplementedState({
     <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-10 text-center">
       <PlugZap className="size-6 text-muted-foreground" />
       <div className="space-y-1">
-        <p className="text-sm font-medium">{feature} is not implemented yet</p>
+        <p className="text-sm font-medium">
+          {feature} ainda não foi implementado
+        </p>
         <p className="max-w-lg text-xs text-muted-foreground">
-          This section is part of the planned architecture but has no backend
-          module yet. It needs {requires}. Nothing is shown here rather than
-          placeholder figures, because invented financial data is worse than
-          none.
+          Esta seção faz parte da arquitetura planejada, mas ainda não tem
+          módulo no backend. Ela depende de {requires}. Nada é exibido aqui em
+          vez de números de exemplo, porque dado financeiro inventado é pior
+          do que dado nenhum.
         </p>
       </div>
     </div>
@@ -76,7 +80,7 @@ export function BackendOfflineState({ message }: { message: string }) {
   return (
     <Alert variant="destructive">
       <Database />
-      <AlertTitle>Backend unavailable</AlertTitle>
+      <AlertTitle>Backend indisponível</AlertTitle>
       <AlertDescription>{message}</AlertDescription>
     </Alert>
   );

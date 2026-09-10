@@ -19,12 +19,13 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { formatDate, formatDecimal } from "@/lib/format";
+import { INDICATOR_LABELS } from "@/lib/labels";
 import type { ObservationSeries } from "@/lib/api/types";
 
 export function IndicatorHistoryChart({ series }: { series: ObservationSeries }) {
   const config = {
     value: {
-      label: series.indicator.name,
+      label: INDICATOR_LABELS[series.indicator.code].name,
       color: "var(--chart-1)",
     },
   } satisfies ChartConfig;

@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({ variable: "--font-mono", subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "CreditRadar",
   description:
-    "Personal credit intelligence and readiness for the Brazilian credit market",
+    "Inteligência de crédito pessoal para o mercado brasileiro",
   // This is a private, single-user application over sensitive financial
   // data. It must never be indexed.
   robots: { index: false, follow: false },
@@ -22,7 +22,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <TooltipProvider>
           <SidebarProvider>

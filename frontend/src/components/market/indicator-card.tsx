@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ProvenancePopover } from "@/components/common/provenance-popover";
+import { INDICATOR_LABELS } from "@/lib/labels";
 import {
   formatDate,
   formatDelta,
@@ -46,6 +47,8 @@ export function IndicatorCard({
   now: number;
 }) {
   const { indicator, latest, last_run: lastRun } = summary;
+  // The pt-BR name, not the backend's en-US domain description. See lib/labels.
+  const label = INDICATOR_LABELS[indicator.code];
 
   const collectionFailed = lastRun?.status === "failed";
   const isStale =
@@ -59,7 +62,7 @@ export function IndicatorCard({
     <Card className="gap-3">
       <CardHeader className="pb-0">
         <CardDescription className="flex items-center gap-1.5 text-xs">
-          {indicator.name}
+          {label.name}
           {latest ? <ProvenancePopover observation={latest} /> : null}
         </CardDescription>
         <CardTitle className="text-2xl tabular-nums">
@@ -67,7 +70,7 @@ export function IndicatorCard({
             formatRate(latest.value, latest.unit)
           ) : (
             <span className="text-base font-normal text-muted-foreground">
-              No observations yet
+              Sem observações
             </span>
           )}
         </CardTitle>
@@ -83,28 +86,28 @@ export function IndicatorCard({
       <CardContent className="space-y-1.5">
         {latest ? (
           <p className="text-xs text-muted-foreground">
-            Reference date {formatDate(latest.reference_date)}
+            Data de referência {formatDate(latest.reference_date)}
           </p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Nothing has been collected for this indicator. Run a collection to
-            populate it.
+            Nada foi coletado para este indicador ainda. Rode uma coleta para
+            preenchê-lo.
           </p>
         )}
 
         {collectionFailed ? (
           <p className="flex items-center gap-1.5 text-xs text-destructive">
             <AlertTriangle className="size-3.5 shrink-0" />
-            Last collection failed. This value may be out of date.
+            A última coleta falhou. Este valor pode estar desatualizado.
           </p>
         ) : isStale && lastRun ? (
           <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-500">
             <AlertTriangle className="size-3.5 shrink-0" />
-            Last synchronized {formatRelativeTime(lastRun.finished_at, now)}
+            Sincronizado {formatRelativeTime(lastRun.finished_at, now)}
           </p>
         ) : lastRun ? (
           <p className="text-xs text-muted-foreground">
-            Synchronized {formatRelativeTime(lastRun.finished_at, now)}
+            Sincronizado {formatRelativeTime(lastRun.finished_at, now)}
           </p>
         ) : null}
       </CardContent>
