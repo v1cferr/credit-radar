@@ -121,12 +121,19 @@ test.describe("the page shows what the API returned", () => {
     const line = page.locator("path.recharts-curve").first();
     await expect(line).toBeAttached();
 
-    // Exactly one drawing command per interval between consecutive points,
-    // so the line reflects the series the API served rather than happening
-    // to be non-empty. Counted by command letter because the curve type
-    // decides whether they are cubic or linear.
+    // One distinct horizontal position per observation, so the line
+    // reflects the series the API served rather than happening to be
+    // non-empty.
+    //
+    // Counted by x coordinate rather than by drawing command: the Selic
+    // target is a step function, drawn flat and then vertical between two
+    // Copom decisions, so each interval contributes two commands where a
+    // straight line contributes one. The number of positions is what the
+    // data determines; how many commands join them is the curve's business.
     const path = (await line.getAttribute("d")) ?? "";
-    const segments = path.match(/[CLQ]/g) ?? [];
-    expect(segments).toHaveLength(body.observations.length - 1);
+    const positions = new Set(
+      [...path.matchAll(/[ML]\s*(-?[\d.]+),/g)].map((match) => match[1]),
+    );
+    expect(positions.size).toBe(body.observations.length);
   });
 });

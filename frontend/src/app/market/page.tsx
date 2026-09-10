@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CHARTED_SERIES } from "@/features/market/charted-series";
+import { toSeriesPoints } from "@/features/market/series-points";
 import { getIndicatorHistory, getMarketSummary } from "@/lib/api/market";
 import { FREQUENCY_LABELS, INDICATOR_LABELS, UNIT_LABELS } from "@/lib/labels";
 
@@ -93,7 +94,10 @@ export default async function MarketPage() {
                           }
                         />
                       ) : (
-                        <IndicatorHistoryChart series={result.data} />
+                        <IndicatorHistoryChart
+                          indicator={result.data.indicator}
+                          points={toSeriesPoints(result.data)}
+                        />
                       )}
                     </CardContent>
                   </Card>
