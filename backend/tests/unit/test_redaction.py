@@ -135,7 +135,7 @@ class TestReporting:
 class TestBinaryRefusal:
     """Formats whose text the rules cannot see must be refused, not passed."""
 
-    def test_a_pdf_is_refused(self, redact, tmp_path):
+    def test_a_pdf_is_refused_without_an_explicit_opt_in(self, redact, tmp_path):
         # The dangerous case. A PDF keeps its text in compressed streams, so
         # these rules find nothing and would report "nothing matched" over a
         # document that still holds a CPF. A false clean bill of health on a
@@ -145,26 +145,34 @@ class TestBinaryRefusal:
         source.write_bytes(b"%PDF-1.7\n binary junk \x00\x01")
 
         with pytest.raises(SystemExit):
-            redact._reject_binary(source)
+            redact._reject_binary(source, pdf_allowed=False)
+
+    def test_a_pdf_is_allowed_when_extraction_is_requested(self, redact, tmp_path):
+        # --pdf is the opt-in: extraction can miss text that redaction then
+        # never sees, so it must be asked for rather than assumed.
+        source = tmp_path / "report.pdf"
+        source.write_bytes(b"%PDF-1.7\n")
+
+        redact._reject_binary(source, pdf_allowed=True)  # must not raise
 
     def test_a_zip_or_xlsx_is_refused(self, redact, tmp_path):
         source = tmp_path / "report.xlsx"
         source.write_bytes(b"PK\x03\x04 rest")
 
         with pytest.raises(SystemExit):
-            redact._reject_binary(source)
+            redact._reject_binary(source, pdf_allowed=True)
 
     def test_plain_text_passes(self, redact, tmp_path):
         source = tmp_path / "report.csv"
         source.write_text("cpf;valor\n529.982.247-25;1.000,00\n", encoding="utf-8")
 
-        redact._reject_binary(source)  # must not raise
+        redact._reject_binary(source, pdf_allowed=False)  # must not raise
 
     def test_json_passes(self, redact, tmp_path):
         source = tmp_path / "report.json"
         source.write_text('{"cpf": "529.982.247-25"}', encoding="utf-8")
 
-        redact._reject_binary(source)  # must not raise
+        redact._reject_binary(source, pdf_allowed=False)  # must not raise
 
     def test_every_refused_signature_is_documented(self, redact):
         # A signature with no label would produce a refusal that does not say
@@ -172,3 +180,94 @@ class TestBinaryRefusal:
         for signature, label in redact.BINARY_SIGNATURES.items():
             assert isinstance(signature, bytes)
             assert label
+
+
+class TestLabelledValuesInFreeText:
+    """The gap that PDF extraction exposed.
+
+    Field-name rules only fire on a JSON key. Extracted PDF text has no keys:
+    "Titular: Fulano De Teste" is one string, so a name and a birth date went
+    straight through while the tool reported success. That is the most
+    dangerous shape a redaction failure can take, because the output looks
+    reviewed.
+    """
+
+    def test_a_labelled_name_is_redacted(self, redact, redactor):
+        result = redactor.text("Titular: Alguem Da Silva Sauro")
+
+        assert "Sauro" not in result
+        assert result.startswith("Titular: ")
+
+    def test_a_labelled_birth_date_is_redacted(self, redact, redactor):
+        result = redactor.text("Data de nascimento: 17/04/1988")
+
+        assert "17/04/1988" not in result
+
+    def test_a_structural_date_is_preserved(self, redactor):
+        # The distinction the label carries. A report's base period and an
+        # instalment due date are the format a parser is written against;
+        # only the label separates them from a birth date, which is why there
+        # is no general date rule.
+        text = "Data base: 06/2026 Gerado em: 04/08/2026"
+
+        assert redactor.text(text) == text
+
+    def test_the_label_itself_survives(self, redactor):
+        # A parser needs to find the field; only its value is personal.
+        result = redactor.text("Nome completo: Alguem")
+
+        assert "Nome completo:" in result
+
+    def test_it_matches_per_line_and_not_across_lines(self, redactor):
+        result = redactor.text("Titular: Alguem\nModalidade: Credito pessoal")
+
+        assert "Alguem" not in result
+        assert "Credito pessoal" in result
+
+    def test_an_unlabelled_capitalised_phrase_is_left_alone(self, redactor):
+        # An institution name is not personal, and guessing at names by shape
+        # would destroy the very fields the parser needs.
+        text = "BANCO EXEMPLO S.A. Aquisicao de veiculos"
+
+        assert redactor.text(text) == text
+
+
+class TestPersonalTableColumns:
+    def test_a_column_named_by_its_header_is_redacted(self, redact, redactor):
+        # A cell holding a name carries no label of its own: only the header
+        # above it says what it is.
+        rows = [
+            ["Titular dos dados", "Modalidade", "Saldo"],
+            ["VICTOR SOBRENOME", "Credito pessoal", "1.000,00"],
+        ]
+
+        result = redactor.table(rows)
+
+        assert result[0] == rows[0]
+        assert result[1][0] == redact.SYNTHETIC_TEXT
+        assert result[1][1] == "Credito pessoal"
+
+    def test_non_personal_columns_keep_their_shape(self, redactor):
+        rows = [
+            ["Instituicao", "Vencimento", "Parcelas"],
+            ["BANCO EXEMPLO S.A.", "01/03/2028", "48"],
+        ]
+
+        result = redactor.table(rows)
+
+        assert result[1] == ["BANCO EXEMPLO S.A.", "01/03/2028", "48"]
+
+    def test_pattern_rules_still_run_on_ordinary_cells(self, redactor):
+        rows = [["Instituicao", "CNPJ"], ["BANCO X", "45.997.418/0001-53"]]
+
+        result = redactor.table(rows)
+
+        assert result[1][1] == "00.000.000/0000-00"
+
+    def test_an_empty_table_is_handled(self, redactor):
+        assert redactor.table([]) == []
+
+    def test_a_header_only_table_is_handled(self, redactor):
+        rows = [["Titular", "Saldo"]]
+
+        assert redactor.table(rows) == rows

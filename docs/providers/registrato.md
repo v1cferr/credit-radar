@@ -74,16 +74,51 @@ The parser. A parser needs the report's format, and the format is only
 visible in a real report, which is a CPF plus a full credit history and must
 not be shared or committed.
 
-The route through is the redaction tool, run by the account holder:
+The report downloads as a **PDF**, which needed two fixes to the redaction
+tool before it could produce a fixture safely.
 
 ```bash
 cd backend
-uv run python scripts/redact_capture.py ~/Downloads/report.pdf \
-  --out tests/fixtures/registrato/report.json
+uv run python scripts/redact_capture.py --pdf \
+  ~/Downloads/<the SCR pdf> \
+  --out tests/fixtures/registrato/scr.json
 ```
 
+`--pdf` is an explicit opt-in, because extraction can miss text that
+redaction then never sees. The tool reports how many pages, tables and
+characters came out, and refuses outright when too little text appears, since
+a scanned PDF would otherwise produce a silently useless fixture.
+
+Extraction keeps tables as rows of cells rather than flattening them into
+prose. For a financial report the layout IS the format: a parser needs to
+know which column held the balance, and recovering that from reflowed text is
+guesswork.
+
+### Two ways this nearly leaked
+
+Both were found by testing against a realistic synthetic PDF, and both would
+have produced a fixture that looked reviewed.
+
+**A PDF's text is compressed.** The original tool ran regexes over raw bytes,
+so it found nothing in a real PDF and reported "replaced: nothing matched"
+over a document that still held a CPF. Verified: in a Flate-compressed PDF
+the CPF is not present in the raw bytes at all. Binary formats are now
+refused unless extraction is explicitly requested.
+
+**A name in free text has no key.** The field-name rules only fire on a JSON
+key, and extracted PDF text has none: `Titular: Fulano De Teste` is a single
+string. The name and the birth date passed straight through while the tool
+reported success on the CPF and the amounts. Labelled values in text are now
+redacted by their label, and table columns by their header, because a cell
+holding a name carries no label of its own.
+
+There is deliberately **no general date rule**: `Data base: 06/2026` and
+`Vencimento: 01/03/2028` are the format a parser is written against, while a
+birth date is personal, and only the label separates them.
+
 Review the output, commit the fixture, and the parser and the domain model
-for credit exposure get written against it.
+for credit exposure get written against it. The downloaded file's own name
+contains the CPF, so the fixture must not inherit it.
 
 ## If the login ever needs automating
 

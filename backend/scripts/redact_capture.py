@@ -97,6 +97,22 @@ PERSONAL_KEYS = frozenset(
 # direction, but the replacement should not impersonate a name in a slot
 # where an institution belongs: the reviewer can restore a value that was
 # never personal, and cannot un-leak one that was.
+# Labels that introduce a personal value in FREE TEXT, as a PDF renders it.
+# The field-name rules only fire on a JSON key, and extracted PDF text has no
+# keys: "Titular: Fulano De Teste" is one string. Without this, a name and a
+# birth date pass straight through while the tool reports success, which is
+# the most dangerous shape a redaction failure can take.
+LABELLED_PERSONAL = re.compile(
+    r"(?im)^([ \t]*(?:nome(?:\s+completo)?|titular(?:\s+dos\s+dados)?|cliente|"
+    r"raz[aã]o\s+social|data\s+de\s+nascimento|nascimento|endere[cç]o|"
+    r"logradouro|cep|e-?mail|telefone|celular)"
+    r"[ \t]*[:\-][ \t]*)(.+)$"
+)
+
+# A date cannot be matched by shape here: "Data base: 06/2026" and
+# "Vencimento: 01/03/2028" are structure a parser needs, while a birth date is
+# personal. Only the LABEL distinguishes them, which is why there is no
+# general date rule.
 SYNTHETIC_NAME = "NOME REDIGIDO"
 SYNTHETIC_DATE = "1990-01-01"
 SYNTHETIC_TEXT = "VALOR SINTETICO"
@@ -119,17 +135,72 @@ deliberate step with its own review, not an accident of running this.
 """
 
 
-def _reject_binary(path: Path) -> None:
+MIN_EXTRACTED_CHARS = 200
+"""Below this, extraction almost certainly failed.
+
+A scanned or image-only PDF yields little or no text. Redacting nothing and
+writing a near-empty fixture would look like success, so it is reported as
+the failure it is.
+"""
+
+
+def _reject_binary(path: Path, *, pdf_allowed: bool) -> None:
     head = path.read_bytes()[:8]
     for signature, label in BINARY_SIGNATURES.items():
-        if head.startswith(signature):
-            _fail(
-                f"{path} looks like a {label}. These rules only see plain text, "
-                f"and a {label} keeps its text compressed, so this would report "
-                f"'nothing matched' over a document that still holds a CPF. "
-                f"Export the report as CSV, JSON or text if the source offers "
-                f"it; otherwise extract the text first and redact that."
+        if not head.startswith(signature):
+            continue
+        if label == "PDF" and pdf_allowed:
+            return
+        hint = (
+            "pass --pdf to extract its text first"
+            if label == "PDF"
+            else "export the report as CSV, JSON or text if the source offers it"
+        )
+        _fail(
+            f"{path} looks like a {label}. These rules only see plain text, "
+            f"and a {label} keeps its text compressed, so this would report "
+            f"'nothing matched' over a document that still holds a CPF. "
+            f"Fix: {hint}."
+        )
+
+
+def extract_pdf(path: Path) -> dict[str, Any]:
+    """Extract a PDF's text and tables, keeping the structure a parser needs.
+
+    Tables are pulled per page as rows of cells rather than flattened into a
+    text blob, because the layout IS the format: a parser for a financial
+    report needs to know which column held the balance, and reading that back
+    out of reflowed prose is guesswork.
+
+    Document metadata is deliberately NOT carried over. A PDF's author, title
+    and subject routinely hold the name of the person it is about, and a
+    fixture has no use for any of it.
+    """
+    try:
+        import pdfplumber
+    except ModuleNotFoundError as error:  # pragma: no cover
+        _fail(f"reading a PDF needs pdfplumber: {error}")
+
+    pages: list[dict[str, Any]] = []
+    with pdfplumber.open(path) as pdf:
+        for number, page in enumerate(pdf.pages, start=1):
+            tables = [
+                [[cell if cell is not None else "" for cell in row] for row in table]
+                for table in (page.extract_tables() or [])
+            ]
+            pages.append(
+                {
+                    "page": number,
+                    "text": page.extract_text() or "",
+                    "tables": tables,
+                }
             )
+
+    return {
+        "source_format": "pdf",
+        "page_count": len(pages),
+        "pages": pages,
+    }
 
 
 def _fail(message: str) -> NoReturn:
@@ -150,6 +221,12 @@ class Redactor:
         return text
 
     def text(self, value: str) -> str:
+        # Labelled values first: a name has no shape of its own, so the label
+        # is the only thing that can find it.
+        value, hits = LABELLED_PERSONAL.subn(lambda m: m.group(1) + SYNTHETIC_TEXT, value)
+        if hits:
+            self.counts["labelled personal value"] += hits
+
         value = self._sub(CPF_FORMATTED, SYNTHETIC["cpf_formatted"], "cpf", value)
         value = self._sub(CNPJ_FORMATTED, SYNTHETIC["cnpj_formatted"], "cnpj", value)
         value = self._sub(EMAIL, SYNTHETIC["email"], "email", value)
@@ -190,10 +267,50 @@ class Redactor:
             return SYNTHETIC["phone"]
         return SYNTHETIC_TEXT
 
+    def table(self, rows: list[list[str]]) -> list[list[str]]:
+        """Redact a table by column, using its header row.
+
+        A cell holding a name carries no label of its own: in
+        `["VICTOR FERREIRA", "476.366.418-28", ...]` only the header above it
+        says what it is. So a header cell naming a personal field marks that
+        whole column, and every value under it is replaced.
+        """
+        if not rows:
+            return rows
+
+        header = rows[0]
+        personal_columns = {
+            index
+            for index, cell in enumerate(header)
+            if str(cell).lower().replace(" ", "").replace("-", "").rstrip("s")
+            in {k.rstrip("s") for k in PERSONAL_KEYS}
+            or any(
+                word in str(cell).lower()
+                for word in ("titular", "nome", "nascimento", "endereço", "endereco")
+            )
+        }
+
+        redacted = [list(header)]
+        for row in rows[1:]:
+            new_row = []
+            for index, cell in enumerate(row):
+                if index in personal_columns and str(cell).strip():
+                    self.counts["personal table column"] += 1
+                    new_row.append(SYNTHETIC_TEXT)
+                else:
+                    new_row.append(self.text(str(cell)))
+            redacted.append(new_row)
+        return redacted
+
     def walk(self, node: Any) -> Any:
         if isinstance(node, dict):
             result: dict[str, Any] = {}
             for key, value in node.items():
+                if key == "tables" and isinstance(value, list):
+                    result[key] = [
+                        self.table(t) if isinstance(t, list) else self.walk(t) for t in value
+                    ]
+                    continue
                 replaced = self.by_key(key, value)
                 result[key] = replaced if replaced is not None else self.walk(value)
             return result
@@ -216,29 +333,59 @@ def main() -> int:
             "as a parser fixture. Review the output before committing it."
         ),
     )
-    parser.add_argument("source", type=Path, help="the real capture (JSON or text)")
+    parser.add_argument(
+        "source", type=Path, help="the real capture (JSON, CSV, text, or PDF with --pdf)"
+    )
+    parser.add_argument(
+        "--pdf",
+        action="store_true",
+        help=(
+            "extract text and tables from a PDF before redacting. An explicit "
+            "opt-in, because extraction can miss text that redaction then never "
+            "sees."
+        ),
+    )
     parser.add_argument("--out", type=Path, required=True, help="where to write the fixture")
     parser.add_argument("--force", action="store_true", help="overwrite the output if it exists")
     args = parser.parse_args()
 
     if not args.source.is_file():
         _fail(f"{args.source} is not a file")
-    _reject_binary(args.source)
+    _reject_binary(args.source, pdf_allowed=args.pdf)
     if args.out.exists() and not args.force:
         _fail(f"{args.out} exists; pass --force to overwrite")
 
-    raw = args.source.read_text(encoding="utf-8")
     redactor = Redactor()
+    extraction: dict[str, Any] | None = None
 
-    try:
-        document = json.loads(raw)
-    except json.JSONDecodeError:
-        # Not JSON: redact as text, which still covers a CSV or a plain
-        # report dump.
-        output = redactor.text(raw)
+    if args.pdf:
+        extraction = extract_pdf(args.source)
+        characters = sum(len(page["text"]) for page in extraction["pages"])
+        tables = sum(len(page["tables"]) for page in extraction["pages"])
+        print(
+            f"redact_capture: extracted {extraction['page_count']} page(s), "
+            f"{tables} table(s), {characters} characters"
+        )
+        if characters < MIN_EXTRACTED_CHARS:
+            _fail(
+                f"only {characters} characters came out, which means extraction "
+                f"failed rather than that the document is empty. A scanned or "
+                f"image-only PDF needs OCR, and a fixture built from this would "
+                f"be silently useless."
+            )
+        output = json.dumps(redactor.walk(extraction), indent=2, ensure_ascii=False) + "\n"
     else:
-        output = json.dumps(redactor.walk(document), indent=2, ensure_ascii=False) + "\n"
+        raw = args.source.read_text(encoding="utf-8")
+        try:
+            document = json.loads(raw)
+        except json.JSONDecodeError:
+            # Not JSON: redact as text, which still covers a CSV or a plain
+            # report dump.
+            output = redactor.text(raw)
+        else:
+            output = json.dumps(redactor.walk(document), indent=2, ensure_ascii=False) + "\n"
 
+    args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(output, encoding="utf-8")
 
     print(f"redact_capture: wrote {args.out}")
