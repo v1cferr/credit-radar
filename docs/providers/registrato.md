@@ -94,6 +94,66 @@ prose. For a financial report the layout IS the format: a parser needs to
 know which column held the balance, and recovering that from reflowed text is
 guesswork.
 
+## The report's format
+
+Learned by extracting a real report. This is FORMAT knowledge, not data, and
+writing it down is what lets the parser be tested against a fixture nobody
+has to trust.
+
+The SCR report is a per-month history: one block per reference month, from
+the oldest requested month to the newest, at roughly one month per page.
+
+Each page carries a header (title, `Página N de M`, `Nome:`, `CPF/CNPJ:`),
+then the column band, then the month's blocks.
+
+```text
+Dívidas                                  Outros compromissos financeiros
+Instituição
+        Em dia    Vencida    Crédito a liberar   Coobrigações   Limites de crédito
+Mês de referência: 03/2026   R$ ...     R$ ...                      R$ ...
+<institution>
+  <modality>                            R$ ...
+```
+
+**Amounts are positional, not ordered.** A month line can carry one, two or
+three amounts, and which columns they belong to is decided by the x
+coordinate, not by their order. Measured header and value positions:
+
+| Column | Header x | Value x |
+| --- | --- | --- |
+| Em dia | 322.5 | ~326 |
+| Vencida | 408.0 | ~432 |
+| Crédito a liberar | 564.9 | — |
+| Coobrigações | 620.0 | — |
+| Limites de crédito | 783.0 | ~750 |
+
+That is the whole reason the fixture carries word geometry. Flowing the page
+into text puts three amounts on one line with no way to tell a balance that
+is current from one that is overdue, and in a report about debt that is the
+entire distinction.
+
+Institution and modality names wrap across lines, so a parser cannot assume
+one row is one line.
+
+## Parser fixtures are synthetic
+
+Not derived from a real report, even a redacted one. Two reasons, and the
+second is the one that decided it.
+
+**A redacted report is still a document shaped by one person's finances**:
+how many institutions, how many months, how many operations. This repository
+is public, and six separate leaks were found in one such file before it read
+clean, which is reason enough not to bet on getting the seventh right.
+
+**A synthetic fixture is a better test.** Redaction replaces every amount
+with the same placeholder, so a fixture built from a real report cannot
+verify that the parser assigns amounts to the right column: every value looks
+identical. A hand-written fixture gives each column a distinct value, which
+is the one thing the parser most needs to get right.
+
+So `backend/tests/fixtures/registrato/` holds invented reports built from the
+format above, and a fixture derived from a real document is git-ignored.
+
 ### Every way this leaked
 
 Six, found one at a time, and **every one of them in a run that reported

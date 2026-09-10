@@ -486,6 +486,13 @@ KNOWN_PLACEHOLDERS = frozenset(
 def verify(path: Path) -> int:
     """Scan a fixture for anything that should not have survived redaction.
 
+    For a fixture redacted from a REAL document. It answers "did redaction
+    work", which is only a question about a redacted file. Pointed at a
+    synthetic fixture it reports every amount as a leak, because it cannot
+    tell an invented value from a surviving one, and "fixing" that by making
+    the amounts identical would destroy the only thing a synthetic fixture is
+    better at: proving the parser assigns an amount to the right column.
+
     A command rather than a snippet to paste, because a snippet carries a
     path relative to whichever directory the reader happened to be in, and
     getting that wrong looks like the fixture is missing rather than like the
@@ -572,9 +579,9 @@ def main() -> int:
         "--verify",
         action="store_true",
         help=(
-            "scan an already-generated fixture instead of creating one. "
-            "Reports identifier shapes that survived and lists upper-case "
-            "tokens for you to read."
+            "scan a fixture REDACTED FROM A REAL DOCUMENT, to check that "
+            "redaction worked. Not for a synthetic fixture: distinct amounts "
+            "are the point of one, and this would report them as leaks."
         ),
     )
     parser.add_argument(
