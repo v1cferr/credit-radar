@@ -74,6 +74,11 @@ Do not introduce Poetry, pipenv, npm, Yarn or Bun.
   `numeric` for this reason.
 - **Keep bureaus separate.** Serasa, Quod, SPC and Equifax use different
   methodologies. Never merge them into a synthetic universal score.
+- **The subject is implicit.** This is a single-user system, so there is
+  exactly one person the data is about and the CPF does not need to be a
+  column anywhere. Debts, scores and exposure belong to "the user" by
+  construction. Introduce a subject identifier only if the system ever stops
+  being single-user, and even then store a reference rather than the number.
 - Preserve these distinctions: `Debt ≠ NegativeRecord ≠ SettlementOffer`;
   `CreditScore ≠ Creditworthiness ≠ Affordability`; `CreditAvailability ≠
   CreditAttractiveness`; "Can I get credit?" ≠ "Should I take it?".
@@ -96,6 +101,14 @@ browser profiles as secrets.
 
 ## Security
 
+- **Never ask the user for a CPF, full name, date of birth, password or any
+  other identifier, and never accept one pasted into a conversation.** An
+  agent conversation is a transcript: a value pasted there has left the
+  user's control, whatever happens next. Identifiers reach the running system
+  through the host's secret chain (Bitwarden to sops to `/run/secrets`, read
+  at runtime), so this repository and any assistant working on it hold the
+  NAME of a secret and never its value. If a task seems to need a real
+  identifier, the task is wrong: use a synthetic fixture.
 - Never commit credentials, CPF, financial records, session cookies, tokens,
   browser profiles or real credit reports.
 - Never log secrets or personal data; redact sensitive fields.
