@@ -129,6 +129,22 @@ browser profiles as secrets.
 - Sync meaningful decisions, discovered provider limitations, blockers and
   milestones to Jira V1C-76. Do not post trivial updates.
 
+## Deployment
+
+Served at `https://credit.v1cferr.dev`, LAN and WireGuard only; the reverse
+proxy answers 403 from the public internet. That reach is the security
+control, not a default: this app has no login and holds a CPF. Widening it
+requires application authentication first, never just a config change.
+
+Owned by the NixOS config in `../dotfiles`: the `credit` entry in
+`hosts/nixos-kingston/services.nix`, `system/services/credit-radar.nix`, and
+`docs/notes/services/credit-radar.md`. That repo has stricter prose rules
+than this one: no em dashes, no emoji, first person.
+
+The proxy routes `/api/*` and `/health` to the backend and the rest to the
+frontend, so the backend keeps its whole surface under `/api/v1`. Browser
+calls are same-origin; the app uses no `NEXT_PUBLIC_*` variable.
+
 ## Commands
 
 ```bash

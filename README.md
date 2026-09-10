@@ -161,6 +161,30 @@ curl -X POST "http://localhost:8007/api/v1/market/indicators/SELIC_TARGET/ingest
 
 Available indicator codes come from `GET /api/v1/market/indicators`.
 
+## Deployment
+
+Served at **https://credit.v1cferr.dev**, reachable from the home network and
+over WireGuard only. From the public internet the reverse proxy answers 403.
+
+That reach is not a default, it is the security control. This application has
+no login of its own and holds a CPF, the debts under it, bureau scores and SCR
+exposure, so exposing it publicly would publish a credit report. The reasoning
+is recorded in the NixOS configuration that owns the ingress:
+
+- `hosts/nixos-kingston/services.nix` — the `credit` entry, `expose = "lan"`
+- `system/services/credit-radar.nix` — the stack brought up at boot
+- `docs/notes/services/credit-radar.md` — why LAN, and why basic auth would
+  not have helped
+
+The proxy sends `/api/*` and `/health` to the backend and everything else to
+the frontend, which is why the backend keeps its whole surface (interactive
+docs and OpenAPI schema included) under `/api/v1`. Browser-side requests are
+same-origin, so the client bundle never learns the API's address and the app
+uses no `NEXT_PUBLIC_*` variable at all.
+
+Making it reachable from outside the house would need application
+authentication first, not a change to `expose`.
+
 ## Checks
 
 ```bash
