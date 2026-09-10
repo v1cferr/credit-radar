@@ -224,12 +224,19 @@ class TestLabelledValuesInFreeText:
         assert "Alguem" not in result
         assert "Credito pessoal" in result
 
-    def test_an_unlabelled_capitalised_phrase_is_left_alone(self, redactor):
-        # An institution name is not personal, and guessing at names by shape
-        # would destroy the very fields the parser needs.
-        text = "BANCO EXEMPLO S.A. Aquisicao de veiculos"
+    def test_an_institution_name_is_redacted(self, redact, redactor):
+        # Revised deliberately. An institution name was treated as
+        # non-personal until a real report made the point: in someone's OWN
+        # credit report these say WHO THEY OWE, which is private financial
+        # information with no place in a committed fixture. A parser needs a
+        # string in that position, not the name of a bank.
+        result = redactor.text("BANCO EXEMPLO S.A. Aquisicao de veiculos")
 
-        assert redactor.text(text) == text
+        assert "BANCO EXEMPLO" not in result
+        assert redact.SYNTHETIC_INSTITUTION in result
+        # The modality is BCB's own taxonomy, not personal, and the parser
+        # maps it, so it must survive.
+        assert "Aquisicao de veiculos" in result
 
 
 class TestPersonalTableColumns:
@@ -247,7 +254,7 @@ class TestPersonalTableColumns:
         assert result[1][0] == redact.SYNTHETIC_TEXT
         assert result[1][1] == "Credito pessoal"
 
-    def test_non_personal_columns_keep_their_shape(self, redactor):
+    def test_dates_and_counts_in_ordinary_columns_survive(self, redactor):
         rows = [
             ["Instituicao", "Vencimento", "Parcelas"],
             ["BANCO EXEMPLO S.A.", "01/03/2028", "48"],
@@ -255,10 +262,13 @@ class TestPersonalTableColumns:
 
         result = redactor.table(rows)
 
-        assert result[1] == ["BANCO EXEMPLO S.A.", "01/03/2028", "48"]
+        assert result[1][1] == "01/03/2028"
+        assert result[1][2] == "48"
+        # The institution is replaced; see TestPersonalFields.
+        assert "BANCO EXEMPLO" not in result[1][0]
 
     def test_pattern_rules_still_run_on_ordinary_cells(self, redactor):
-        rows = [["Instituicao", "CNPJ"], ["BANCO X", "45.997.418/0001-53"]]
+        rows = [["Instituicao", "CNPJ"], ["Banco X", "45.997.418/0001-53"]]
 
         result = redactor.table(rows)
 
@@ -330,3 +340,127 @@ class TestTableHeaderRowIsNotTrusted:
         result = redactor.table([["Doc do titular 529.982.247-25"], ["x"]])
 
         assert "529.982.247-25" not in result[0][0]
+
+
+class TestAmountsBelowAThousand:
+    """The leak found by scanning a real report's fixture.
+
+    The money pattern required a thousands separator, so every amount under
+    a thousand passed through. The real report leaked 154 distinct sub-1000
+    values across 560 occurrences, which is a credit position in detail.
+    """
+
+    def test_an_amount_without_a_thousands_separator_is_redacted(self, redactor):
+        assert "34,97" not in redactor.text("R$ 34,97")
+
+    def test_an_amount_just_under_a_thousand_is_redacted(self, redactor):
+        assert "999,00" not in redactor.text("Saldo devedor R$ 999,00")
+
+    def test_an_amount_with_a_separator_is_still_redacted(self, redactor):
+        assert "48.750,33" not in redactor.text("R$ 48.750,33")
+
+    def test_a_rate_is_redacted_too(self, redactor):
+        # A rate on the holder's own contract is their financial position.
+        assert "2,50" not in redactor.text("Taxa 2,50")
+
+    def test_an_instalment_count_is_preserved(self, redactor):
+        # Structure a parser needs; no comma, so no decimal to redact.
+        assert redactor.text("Parcelas: 48") == "Parcelas: 48"
+
+    def test_a_page_counter_is_preserved(self, redactor):
+        assert redactor.text("Página 1 de 31") == "Página 1 de 31"
+
+    def test_a_due_date_is_preserved(self, redactor):
+        assert redactor.text("Vencimento: 01/03/2028") == "Vencimento: 01/03/2028"
+
+    def test_the_placeholder_does_not_preserve_length(self, redactor):
+        # Matching the digit count would keep column alignment and reveal the
+        # magnitude, which is the detail being removed. Every amount becomes
+        # the same placeholder regardless of size.
+        small = redactor.text("R$ 34,97")
+        large = redactor.text("R$ 987.654,32")
+
+        assert small.split("R$ ")[1] == large.split("R$ ")[1]
+
+
+class TestPositionedWords:
+    """The geometry list, and the invariant that keeps it safe.
+
+    Word positions are needed because the COLUMN an amount sits in is the
+    difference between a balance that is current and one that is overdue, and
+    flowing a page into text throws that away.
+
+    Adding it reintroduced a name leak in a new shape. Every label-based and
+    multi-word rule is blind to a list of single tokens, so "VICTOR" and
+    "FERREIRA" appeared as separate entries and a search for the joined name
+    did not find them. The fix is an invariant, not another pattern: a token
+    survives only if it appears in the already-redacted text.
+    """
+
+    def test_a_token_absent_from_the_redacted_text_is_replaced(self, redact, redactor):
+        words = [{"text": "SOBRENOME", "x0": 10.0, "x1": 60.0, "top": 5.0}]
+
+        result = redactor.words(words, redacted_text="Nome: VALOR SINTETICO")
+
+        assert result[0]["text"] == redact.SYNTHETIC_TOKEN
+
+    def test_a_structural_token_survives(self, redactor):
+        words = [{"text": "Vencimento", "x0": 10.0, "x1": 60.0, "top": 5.0}]
+
+        result = redactor.words(words, redacted_text="Vencimento 01/03/2028")
+
+        assert result[0]["text"] == "Vencimento"
+
+    def test_an_amount_becomes_the_placeholder_and_not_an_opaque_marker(self, redact, redactor):
+        # The ordering that matters. Filtering the RAW token would turn every
+        # amount into an opaque marker, because "34,97" is not in a text that
+        # now reads "1.234,56", and that destroys the one thing this list
+        # exists for: knowing a number sits at this position.
+        words = [{"text": "34,97", "x0": 10.0, "x1": 60.0, "top": 5.0}]
+
+        result = redactor.words(words, redacted_text="Saldo R$ 1.234,56")
+
+        assert result[0]["text"] == "1.234,56"
+        assert result[0]["text"] != redact.SYNTHETIC_TOKEN
+
+    def test_geometry_is_preserved_exactly(self, redactor):
+        # The position is structure, not content: it says which column, never
+        # what value.
+        words = [{"text": "SOBRENOME", "x0": 12.5, "x1": 63.5, "top": 7.25}]
+
+        result = redactor.words(words, redacted_text="")
+
+        assert result[0]["x0"] == 12.5
+        assert result[0]["x1"] == 63.5
+        assert result[0]["top"] == 7.25
+
+    def test_matching_ignores_case_and_surrounding_punctuation(self, redactor):
+        words = [{"text": "(SCR)", "x0": 0.0, "x1": 1.0, "top": 0.0}]
+
+        result = redactor.words(words, redacted_text="Relatorio SCR do periodo")
+
+        assert result[0]["text"] == "(SCR)"
+
+    def test_no_token_survives_that_the_text_does_not_contain(self, redact, redactor):
+        # The invariant itself, stated as a test: whatever redaction removed
+        # cannot come back through the geometry. A token is therefore either
+        # present in the redacted text or replaced by the placeholder, and
+        # nothing else is possible.
+        redacted_text = "Nome: VALOR SINTETICO Saldo R$ 1.234,56"
+        words = [
+            {"text": t, "x0": 0.0, "x1": 1.0, "top": 0.0}
+            for t in ("Nome:", "ALGUEM", "SOBRENOME", "Saldo", "48.750,33")
+        ]
+
+        result = redactor.words(words, redacted_text)
+
+        allowed = {token.strip(".,;:()[]/").casefold() for token in redacted_text.split()}
+        allowed.add(redact.SYNTHETIC_TOKEN.casefold())
+        for word in result:
+            key = word["text"].strip(".,;:()[]/").casefold()
+            assert not key or key in allowed, word["text"]
+
+        # And the personal tokens specifically did not survive.
+        surviving = {w["text"] for w in result}
+        assert "ALGUEM" not in surviving
+        assert "SOBRENOME" not in surviving

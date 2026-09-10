@@ -48,7 +48,12 @@ EMAIL = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.]+\b")
 # parenthesis: a space followed by "(" is non-word to non-word, so there is
 # no boundary there and "(16) 98765-4321" would not match.
 PHONE = re.compile(r"(?<![\w\d])(?:\+55[\s-]?)?(?:\(\d{2}\)|\d{2})[\s-]\d{4,5}[-\s]?\d{4}\b")
-MONEY = re.compile(r"(?<![\d,.])\d{1,3}(?:\.\d{3})+,\d{2}(?![\d])")
+# The thousands separator is OPTIONAL. Requiring it meant every amount
+# below a thousand passed through: a real report leaked 154 distinct
+# sub-1000 values across 560 occurrences, which is a credit position in
+# detail. Any Brazilian decimal with two places is money or a rate here,
+# and both are the account holder's financial data.
+MONEY = re.compile(r"(?<![\d,.])\d{1,3}(?:\.\d{3})*,\d{2}(?![\d])")
 
 # Replacements are obviously synthetic AND the same length as what they
 # replace, so a fixed-width or column-aligned format still parses.
@@ -113,6 +118,42 @@ LABELLED_PERSONAL = re.compile(
 # "Vencimento: 01/03/2028" are structure a parser needs, while a birth date is
 # personal. Only the LABEL distinguishes them, which is why there is no
 # general date rule.
+# Institution names. In someone's own credit report these say WHO THEY OWE,
+# which is private financial information and has no place in a committed
+# fixture. A parser needs to know a string sits in that position, not which
+# bank it names.
+#
+# Matched as a run of two or more ALL-CAPS words, which is how this report
+# renders them, with the structural vocabulary allowlisted below. Column
+# labels and prose are not upper-case, so they are unaffected.
+# Every word must START with a letter and contain no digits. Allowing digits
+# made this swallow "CPF 529.982.247-25" and "CNPJ 45.997.418/0001-53" whole,
+# replacing an identifier with an institution placeholder: still redacted, but
+# under the wrong label and destroying the field a parser reads.
+INSTITUTION_RUN = re.compile(
+    r"\b[A-ZÁÂÃÀÉÊÍÓÔÕÚÜÇ][A-ZÁÂÃÀÉÊÍÓÔÕÚÜÇ&./'-]{1,}"
+    r"(?:[ ,\-]+[A-ZÁÂÃÀÉÊÍÓÔÕÚÜÇ][A-ZÁÂÃÀÉÊÍÓÔÕÚÜÇ&./'-]{1,}){1,8}\b"
+)
+
+UPPERCASE_ALLOWLIST = frozenset(
+    {
+        # This tool's own placeholders.
+        "VALOR SINTETICO",
+        "NOME REDIGIDO",
+        # Structural vocabulary of the report.
+        "SCR",
+        "CPF",
+        "CNPJ",
+        "CPF/CNPJ",
+        "NAO",
+        "NÃO",
+        "TOTAL",
+        "R$",
+    }
+)
+
+SYNTHETIC_INSTITUTION = "INSTITUICAO SINTETICA S.A."
+SYNTHETIC_TOKEN = "XXXX"
 SYNTHETIC_NAME = "NOME REDIGIDO"
 SYNTHETIC_DATE = "1990-01-01"
 SYNTHETIC_TEXT = "VALOR SINTETICO"
@@ -188,11 +229,26 @@ def extract_pdf(path: Path) -> dict[str, Any]:
                 [[cell if cell is not None else "" for cell in row] for row in table]
                 for table in (page.extract_tables() or [])
             ]
+            # Word positions, because the COLUMN an amount sits in is the
+            # difference between a balance that is current and one that is
+            # overdue, and flowing the page into text throws that away. The
+            # geometry is structure, not content: it says which column, never
+            # what value.
+            words = [
+                {
+                    "text": word["text"],
+                    "x0": round(float(word["x0"]), 1),
+                    "x1": round(float(word["x1"]), 1),
+                    "top": round(float(word["top"]), 1),
+                }
+                for word in (page.extract_words() or [])
+            ]
             pages.append(
                 {
                     "page": number,
                     "text": page.extract_text() or "",
                     "tables": tables,
+                    "words": words,
                 }
             )
 
@@ -236,8 +292,64 @@ class Redactor:
         # Amounts are replaced too. They are not identifiers, but a committed
         # fixture of someone's real balances is still their financial
         # position, and a parser only needs the shape.
+        value = self._redact_institutions(value)
+
+        # A FIXED placeholder, deliberately not one that preserves the
+        # original's length. Matching the digit count would keep column
+        # alignment, and would also reveal the magnitude: a five-digit
+        # replacement says "this balance is in the tens of thousands", which
+        # is exactly the financial detail being removed.
         value = self._sub(MONEY, "1.234,56", "amount", value)
         return value
+
+    def _redact_institutions(self, value: str) -> str:
+        """Replace runs of upper-case words that name an institution."""
+
+        def replace(match: re.Match[str]) -> str:
+            text = match.group(0)
+            if text.strip() in UPPERCASE_ALLOWLIST:
+                return text
+            if all(word in UPPERCASE_ALLOWLIST for word in text.split()):
+                return text
+            self.counts["institution name"] += 1
+            return SYNTHETIC_INSTITUTION
+
+        return INSTITUTION_RUN.sub(replace, value)
+
+    def words(self, words: list[dict[str, Any]], redacted_text: str) -> list[dict[str, Any]]:
+        """Redact positioned words against the already-redacted page text.
+
+        An invariant rather than another pattern: a token survives here ONLY
+        if it still appears in the redacted text.
+
+        Every label-based and multi-word rule is blind to this list, because a
+        single word has no label and no neighbours. Adding it reintroduced a
+        name leak in a new shape: "VICTOR" and "FERREIRA" as separate
+        entries, which a search for the joined name does not find. Deriving
+        the list from the redacted text closes that by construction, so a
+        token redaction removed cannot come back through the geometry.
+        """
+        allowed = {
+            token.strip(".,;:()[]/").casefold()
+            for token in re.split(r"\s+", redacted_text)
+            if token.strip(".,;:()[]/")
+        }
+
+        result: list[dict[str, Any]] = []
+        for word in words:
+            # The pattern rules run FIRST, then the invariant. Filtering the
+            # raw token instead turned every amount into an opaque marker,
+            # because "34,97" is not in a text that now reads "1.234,56", and
+            # that destroyed the one thing this list exists for: knowing a
+            # NUMBER sits at this x position, and therefore which column it
+            # belongs to.
+            token = self.text(str(word.get("text", "")))
+            key = token.strip(".,;:()[]/").casefold()
+            if key and key not in allowed:
+                self.counts["positioned word"] += 1
+                token = SYNTHETIC_TOKEN
+            result.append({**word, "text": token})
+        return result
 
     def by_key(self, key: str, value: Any) -> Any:
         """Replace a value because of the field it sits in."""
@@ -317,6 +429,18 @@ class Redactor:
                     result[key] = [
                         self.table(t) if isinstance(t, list) else self.walk(t) for t in value
                     ]
+                    continue
+                if key == "words" and isinstance(value, list):
+                    # Needs this page's REDACTED text, which the "text" key
+                    # produced earlier in this same loop. Extraction emits
+                    # "text" before "words", and the assertion below refuses
+                    # to guess if that ever stops being true.
+                    if "text" not in result:
+                        _fail(
+                            "internal: 'words' was reached before 'text', so the "
+                            "redacted text needed to filter it is not available"
+                        )
+                    result[key] = self.words(value, str(result["text"]))
                     continue
                 replaced = self.by_key(key, value)
                 result[key] = replaced if replaced is not None else self.walk(value)

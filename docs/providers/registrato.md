@@ -132,6 +132,34 @@ There is deliberately **no general date rule**: `Data base: 06/2026` and
 `Vencimento: 01/03/2028` are the format a parser is written against, while a
 birth date is personal, and only the label separates them.
 
+### Five ways this leaked, found one at a time
+
+Every one of them was in a run that reported success. **A count of
+replacements is not evidence of a clean fixture.**
+
+| Leak | Cause |
+| --- | --- |
+| CPF invisible in raw bytes | PDF text is Flate-compressed; regexes over bytes found nothing |
+| Name and birth date in free text | Field rules fire on a JSON key, and extracted text has none: `Titular: X` is one string |
+| Name and CPF, 31 times | A table's first row was copied verbatim; extraction had put the PAGE header there |
+| 154 amounts, 560 occurrences | The money pattern required a thousands separator, so everything under R$ 1.000 passed |
+| Name split into `VICTOR` / `FERREIRA` | The positioned-words list has no labels and no neighbours, and a search for the joined name misses it |
+
+Institution names were also treated as non-personal until a real report made
+the point: in someone's own credit report they say **who they owe**, which is
+private financial information. They are now replaced too. What survives is
+Banco Central's own taxonomy (`Cartão de crédito`, `Crédito pessoal - sem
+consignação em folha de pagamento`), which a parser maps and which names
+nobody.
+
+The positioned-words list is protected by an **invariant rather than another
+pattern**: a token survives only if it appears in the already-redacted text,
+so whatever redaction removed cannot come back through the geometry.
+
+The amount placeholder deliberately does **not** preserve the original's
+length. Matching the digit count would keep column alignment and would reveal
+the magnitude, which is the detail being removed.
+
 ### Verifying a fixture before committing it
 
 Not optional, and not by eye over 100 KB of JSON. Scan it:
@@ -153,6 +181,22 @@ for label, pattern in {
 print("also grep for your own name and address by hand")
 EOF
 ```
+
+**Check the tokenized forms too.** A search for a joined name misses a name
+split across the positioned-words list, which is how one leak survived a scan
+that reported clean:
+
+```bash
+python -c "
+import json
+d = json.load(open('tests/fixtures/registrato/scr.json'))
+caps = {w['text'] for p in d['pages'] for w in p['words']
+        if len(w['text']) >= 3 and w['text'] == w['text'].upper()}
+print(sorted(caps))"
+```
+
+Every token that comes back should be a label, a placeholder, or Banco
+Central's vocabulary. A surname will stand out.
 
 A count of replacements is not evidence of a clean fixture: the leak above
 happened in a run that reported 386 successful replacements.
