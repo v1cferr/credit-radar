@@ -139,6 +139,25 @@ browser profiles as secrets.
   as exhaustive Records, so a new indicator fails to compile until it has a
   label instead of leaking a raw enum value onto the screen.
 
+## Testing rules
+
+- **The default suite never touches the network.** No test may depend on an
+  external provider being up. A suite that fails for reasons outside the
+  repository stops being a signal. Real-provider checks go behind the `live`
+  marker, which is excluded by default.
+- **Integration tests use real PostgreSQL, never SQLite.** What they cover is
+  PostgreSQL behaviour: unconstrained `numeric` scale, `ON CONFLICT`
+  deduplication, `DISTINCT ON` revision selection.
+- **Never real personal data.** Fixtures are captured from public endpoints
+  or generated synthetically, and E2E values are deliberately unlike the real
+  figures so a screenshot cannot be mistaken for a real reading.
+- **A fixture that opens its own session must clean up after itself.**
+  Leaning on another fixture's cleanup made the suite order-dependent once.
+- Use the cheapest level that reliably catches the behaviour. Do not test
+  through the browser what a unit test can prove.
+- Financial calculations get unit tests over `Decimal` with explicit rounding
+  assertions, never floating point.
+
 ## Working rules
 
 - **Everything in en-US**: code, comments, docs, commit messages, technical
@@ -178,9 +197,13 @@ nix develop                  # dev shell: python, uv, node, pnpm, psql
 docker compose up -d         # full stack
 docker compose up -d postgres
 
-cd backend  && uv run ruff format . && uv run ruff check . \
+# The quality gate. A change is not finished while any of these fails.
+cd backend  && uv run ruff format --check . && uv run ruff check . \
             && uv run mypy && uv run pytest
-cd frontend && pnpm lint && pnpm exec tsc --noEmit && pnpm build
+cd frontend && pnpm lint && pnpm typecheck && pnpm build
+cd frontend && pnpm test:e2e          # full-stack, manages its own database
+
+cd backend  && uv run pytest -m live  # opt-in: contacts the real BCB API
 ```
 
 Default host ports are offset (postgres 5434, backend 8007, frontend 3007)

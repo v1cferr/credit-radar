@@ -22,6 +22,52 @@ imports neither. A provider's job is to make external data disappear as
 external: no SGS field name, HTML structure or bureau-specific shape exists
 outside the provider that produced it.
 
+## Dependency direction, enforced
+
+```text
+api  ->  services  ->  domain  <-  persistence
+                              <-  providers
+```
+
+The domain sits at the bottom and knows nothing about how it is delivered or
+stored. Everything else may depend inwards, never outwards.
+
+This is not a convention. `tests/unit/test_architecture.py` parses every
+module's AST and fails when it is broken, which matters because the way this
+rule gets violated is never a decision: it is one convenient import during a
+hurry. What is checked:
+
+| Rule | Why it is not tidiness |
+| --- | --- |
+| The domain imports no infrastructure | A domain that imports SQLAlchemy cannot be reasoned about without a database; one that imports FastAPI has an opinion about HTTP |
+| The domain imports nothing else from this package | Anything it needs from elsewhere means the concept belongs in the domain, or the dependency is upside down |
+| No layer imports the layers above it | |
+| Providers do not touch persistence | A provider's job ends at producing a domain object; letting one write puts transaction boundaries inside an adapter, where a retry or a parse failure could half-commit |
+| The web framework only in `api`, the HTTP client only in `providers`, the ORM only in `persistence` | An HTTP call from a service or a repository is an external integration that skipped the anti-corruption layer |
+
+## Module ownership
+
+The backend is organised by technical layer today because there is one
+domain. That is the right shape for one domain and the wrong shape for ten:
+`persistence/models.py` and `api/schemas.py` are fine at their current size
+and would become the files every feature has to edit.
+
+The direction is domain-oriented modules, each owning its domain models,
+application services, persistence models, API schemas, router and tests, so
+that a change to one capability stays near that capability.
+
+**The trigger is the second domain, not a calendar.** When `debts` or
+`scores` arrives, it is built as `modules/<name>/` with its own layers, and
+`market` migrates alongside it rather than before it. Restructuring now would
+be a diagram applied to code that does not yet feel the pressure, and the
+prompt for it would be indistinguishable from the prompt for restructuring
+again later.
+
+Cross-cutting infrastructure (configuration, logging, database sessions,
+credentials, provenance primitives) is what belongs in a shared `core`. A
+business concept never does: `Debt` and `CreditScore` are domains, not
+utilities.
+
 ## Synchronous by choice
 
 The backend is synchronous throughout: `httpx.Client`, synchronous
@@ -170,6 +216,115 @@ screen.
 No i18n library: there is one locale, and a framework for it would be
 machinery without a second case to justify it. A library earns its place the
 day a second language does.
+
+## Testing layers
+
+Each behaviour is tested at the cheapest level that can reliably catch it.
+The count is not the objective; what the tests protect is.
+
+```text
+        Full-stack E2E, Playwright        48   browser -> Next -> FastAPI -> PostgreSQL
+        API / integration, pytest         38   FastAPI -> service -> repository -> PostgreSQL
+        Provider contract and parsers     22   fixtures -> provider -> domain observation
+        Unit, pure domain and rules       53   invariants, architecture, credentials, CLI
+        Live smoke, opt-in                12   the real upstream contract
+```
+
+113 in the default backend run, 12 more when live is opted into, and 48 in
+the browser.
+
+**Integration tests run against real PostgreSQL, never SQLite.** The
+behaviours they cover are PostgreSQL behaviours: unconstrained `numeric`
+preserving a published scale, `ON CONFLICT` deduplication against a unique
+constraint that spans the value, and `DISTINCT ON` selecting the current
+revision per reference date. Verifying those on another engine would prove
+nothing about production. They skip cleanly when no database is reachable.
+
+Tests are isolated by truncating between cases. A fixture that opens its own
+session factory has to clean up after itself: one that leaned on another
+fixture's cleanup made the suite quietly order-dependent, so a test asserting
+that a collection stores something passed or failed according to whether an
+earlier test had already stored it.
+
+### The default suite never touches the network
+
+No test in the default run depends on Banco Central being up, on a rate
+limit, on authentication, or on a page that changed overnight. A suite that
+fails for reasons outside the repository stops being a signal, and the next
+real failure is ignored along with it.
+
+Provider tests therefore run against a mocked transport with fixtures
+captured from the real endpoints, so parsing is verified separately from
+network interaction.
+
+### Live smoke tests, opted into
+
+Fixtures answer "does the parser handle this payload". They cannot answer "is
+this still the payload the source sends", so a parser can stay green forever
+against a shape the upstream stopped producing.
+
+```bash
+uv run pytest -m live
+```
+
+Excluded by default through `addopts`. They assert the contract rather than
+the data: that every mapped series still answers, that a payload still
+normalizes, that units still match the catalog, and that the two upstream
+limits the provider is built around still hold. Public data only; pointing
+anything here at an authenticated source requires an opt-in of its own.
+
+### End-to-end environment
+
+```text
+seed credit_radar_e2e  ->  migrate  ->  build frontend
+       ->  uvicorn :8008  ->  next start :3008  ->  Playwright
+```
+
+Three properties make it trustworthy:
+
+**A separate database, enforced.** The seed script refuses to run against a
+database whose name does not mark it as disposable. It truncates tables, and
+the historical series is the one asset here that cannot be rebuilt, so
+pointing it at `credit_radar` fails instead of wiping it.
+
+**One seed, every state.** The synthetic dataset produces a healthy series, a
+stale one, a failed collection and an indicator with nothing at all, so the
+honest-state behaviour is assertable without waiting for a real outage. Its
+values are deliberately unlike the real figures, so a screenshot from the
+suite cannot be mistaken for a real reading of the market.
+
+**A second frontend for the outage case.** The dashboard fetches
+server-side, so a browser-level intercept cannot simulate an unreachable
+backend. One instance runs against a port nothing listens on, which is the
+only way to exercise the real failure path.
+
+Servers are never reused, not even locally: global setup rebuilds the
+frontend and the backend reads its code at import, so a reused process could
+serve an artefact replaced underneath it. That failure looks like flakiness
+and is actually a stale build.
+
+Chromium only. This is a personal application used from one browser, so three
+engines would triple the runtime to defend against a compatibility problem
+nobody has.
+
+## Security boundaries
+
+Stated fully in [security.md](security.md); the structural parts:
+
+- **The frontend never reaches a provider, a browser worker or the
+  database.** All financial data passes through the backend's domain layer
+  and arrives carrying its provenance.
+- **The safety invariant is tested, not just documented.** A test asserts
+  against the generated OpenAPI document that the only non-idempotent route
+  is data collection, so a route that could create a financial obligation
+  fails the suite.
+- **No `NEXT_PUBLIC_*` variable exists.** Anything inlined into the client
+  bundle is readable by whoever loads the page.
+- **Credentials are names here and values elsewhere.** Read at runtime from
+  the host's secret directory, wrapped so a traceback shows nothing, and
+  loaded only where a source declares it needs them.
+- Request URLs are not logged, because an authenticated provider's URL can
+  carry an identifier.
 
 ## Known limitations
 

@@ -205,13 +205,37 @@ authentication first, not a change to `expose`.
 
 ## Checks
 
+The quality gate. A change is not finished while any of these fails.
+
 ```bash
-cd backend  && uv run ruff format . && uv run ruff check . \
-            && uv run mypy && uv run pytest
-cd frontend && pnpm lint && pnpm exec tsc --noEmit && pnpm build
+# Backend: format, lint, types, tests
+cd backend
+uv run ruff format --check . && uv run ruff check . && uv run mypy && uv run pytest
+
+# Frontend: lint, types, build
+cd frontend
+pnpm lint && pnpm typecheck && pnpm build
+
+# Application: full-stack end to end
+cd frontend
+pnpm test:e2e
 ```
 
-Backend integration tests need PostgreSQL and skip cleanly without it.
+Two categories are deliberately outside the default run:
+
+```bash
+cd backend && uv run pytest -m live   # contacts the real Banco Central API
+```
+
+Coverage percentage is not a target. What the tests protect is: domain
+invariants, financial precision, provenance, the historical record, the API
+contract, and the states that keep the UI from looking more certain than the
+data.
+
+Backend integration tests need PostgreSQL and skip cleanly without it. The
+E2E suite manages its own database, servers and browser; it refuses to run
+against a database whose name does not mark it as disposable, so it cannot
+touch the personal one.
 
 ## Security
 
