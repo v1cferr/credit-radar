@@ -196,6 +196,9 @@ about fifty lines. Once debts, scores, exposure and financing exist it starts
 paying for itself, and the document is already served at
 `/api/v1/openapi.json`.
 
+The interface layer — design tokens, number formatting, freshness, chart
+rules, metadata limits — is documented in [interface.md](interface.md).
+
 ## Interface language
 
 The UI is pt-BR; everything else in the repository is en-US. That split is
@@ -223,10 +226,10 @@ Each behaviour is tested at the cheapest level that can reliably catch it.
 The count is not the objective; what the tests protect is.
 
 ```text
-        Full-stack E2E, Playwright        48   browser -> Next -> FastAPI -> PostgreSQL
-        API / integration, pytest         38   FastAPI -> service -> repository -> PostgreSQL
-        Provider contract and parsers     22   fixtures -> provider -> domain observation
-        Unit, pure domain and rules       53   invariants, architecture, credentials, CLI
+        Full-stack E2E, Playwright       115   browser -> Next -> FastAPI -> PostgreSQL
+        API / integration, pytest         45   FastAPI -> service -> repository -> PostgreSQL
+        Unit, pure domain and rules      153   invariants, architecture, parsers, redaction
+        Unit, frontend pure functions     54   formatting, design tokens, content rules
         Live smoke, opt-in                12   the real upstream contract
 ```
 
@@ -298,10 +301,15 @@ server-side, so a browser-level intercept cannot simulate an unreachable
 backend. One instance runs against a port nothing listens on, which is the
 only way to exercise the real failure path.
 
-Servers are never reused, not even locally: global setup rebuilds the
-frontend and the backend reads its code at import, so a reused process could
-serve an artefact replaced underneath it. That failure looks like flakiness
-and is actually a stale build.
+Servers are never reused, not even locally: the backend reads its code at
+import, so a reused process could serve an artefact replaced underneath it.
+That failure looks like flakiness and is actually a stale build.
+
+The frontend is built by the `test:e2e` script rather than by global setup,
+because Playwright starts `webServer` entries before global setup runs.
+Building there swapped `.next` under three live `next start` processes, which
+kept serving the previous build's chunk names; see
+[interface.md](interface.md#quality-gate).
 
 Chromium only. This is a personal application used from one browser, so three
 engines would triple the runtime to defend against a compatibility problem

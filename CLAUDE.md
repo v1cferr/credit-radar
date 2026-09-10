@@ -126,8 +126,14 @@ and the user exports the report themselves. See
 ## UI rules
 
 - Never invent a value. Distinguish *loading*, *collected nothing* and
-  *provider not implemented* as separate visible states.
+  *provider not implemented* as separate visible states. A section with no
+  backend module shows no digits at all — not a placeholder, not a skeleton.
 - Show provenance: source, series, reference date, collection time.
+- Financial state uses the semantic tokens, never a raw colour, and colour
+  never carries a meaning on its own.
+- Nothing about a credit position reaches a title, description, Open Graph
+  tag or manifest. Those are quoted verbatim wherever a link is shared.
+- Conventions in full: [docs/interface.md](docs/interface.md).
 - Show staleness and failed collections. Never present a stale or failed
   source as current.
 - **The interface is pt-BR.** This is the one exception to the en-US rule
@@ -205,7 +211,7 @@ docker compose up -d postgres
 # The quality gate. A change is not finished while any of these fails.
 cd backend  && uv run ruff format --check . && uv run ruff check . \
             && uv run mypy && uv run pytest
-cd frontend && pnpm lint && pnpm typecheck && pnpm build
+cd frontend && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm build
 cd frontend && pnpm test:e2e          # full-stack, manages its own database
 
 cd backend  && uv run pytest -m live  # opt-in: contacts the real BCB API
