@@ -73,6 +73,19 @@ def _amount(value: str, column: str, top: float) -> list[dict[str, Any]]:
     ]
 
 
+NO_OPERATIONS_SENTENCE = (
+    "Não foram encontrados registros de operações de crédito em nome do "
+    "cliente para o mês de referência."
+)
+"""How the real report states that a month held nothing.
+
+Reproduced because it is a trap in the format rather than a detail: the
+sentence contains the words "mês de referência", so a parser that looks for
+that phrase alone reads it as a malformed data row. The real report carries
+six of them.
+"""
+
+
 class MonthBlock:
     """One reference month: its totals, and the operations under it."""
 
@@ -81,11 +94,14 @@ class MonthBlock:
         month: str,
         totals: dict[str, str],
         operations: list[tuple[str, str, str, str]] | None = None,
+        *,
+        no_operations: bool = False,
     ) -> None:
         self.month = month
         self.totals = totals
         # (institution, modality, column, amount)
         self.operations = operations or []
+        self.no_operations = no_operations
 
 
 def build_page(number: int, total: int, blocks: list[MonthBlock]) -> dict[str, Any]:
@@ -125,6 +141,11 @@ def build_page(number: int, total: int, blocks: list[MonthBlock]) -> dict[str, A
         words += row
         lines.append(text)
         top += 18
+
+        if block.no_operations:
+            words.append(_word(NO_OPERATIONS_SENTENCE, 30.0, top))
+            lines.append(NO_OPERATIONS_SENTENCE)
+            top += 16
 
         for institution, modality, column, value in block.operations:
             words.append(_word(institution, 30.0, top))
