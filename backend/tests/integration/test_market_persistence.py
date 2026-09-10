@@ -222,3 +222,134 @@ class TestProvenanceRoundTrip:
         assert stored.provenance.source_reference == "bcdata.sgs.432"
         assert stored.provenance.collector_version == "1"
         assert stored.provenance.collected_at == datetime(2026, 9, 9, 12, 0, tzinfo=UTC)
+
+
+class TestBeforeLastChange:
+    """The value an indicator held before the one it holds now.
+
+    This exists because "the previous observation" is the wrong question for
+    a policy rate. The Selic target is published every business day and does
+    not move between Copom decisions, so a difference against yesterday is
+    almost always zero and says nothing.
+    """
+
+    def test_skips_repeated_values_to_find_the_last_movement(self, session):
+        repository = MarketObservationRepository(session)
+        repository.add_all(
+            [
+                observation(value="13.25", reference_date=date(2026, 6, 15)),
+                observation(value="13.25", reference_date=date(2026, 6, 16)),
+                observation(value="14.00", reference_date=date(2026, 6, 17)),
+                observation(value="14.00", reference_date=date(2026, 6, 18)),
+                observation(value="14.00", reference_date=date(2026, 6, 19)),
+            ]
+        )
+        session.flush()
+
+        previous = repository.before_last_change(IndicatorCode.SELIC_TARGET)
+
+        assert previous is not None
+        assert previous.value == Decimal("13.25")
+        # The last date the older value applied, which is when it changed.
+        assert previous.reference_date == date(2026, 6, 16)
+
+    def test_is_the_preceding_period_for_a_series_that_always_moves(self, session):
+        # A monthly average rate differs every month, so the answer here is
+        # simply the previous month -- which is what one would want anyway.
+        repository = MarketObservationRepository(session)
+        repository.add_all(
+            [
+                observation(value="24.10", reference_date=date(2026, 7, 1)),
+                observation(value="24.50", reference_date=date(2026, 8, 1)),
+            ]
+        )
+        session.flush()
+
+        previous = repository.before_last_change(IndicatorCode.SELIC_TARGET)
+
+        assert previous is not None
+        assert previous.value == Decimal("24.10")
+        assert previous.reference_date == date(2026, 7, 1)
+
+    def test_a_value_that_returned_reports_the_one_in_between(self, session):
+        # 13.25 -> 13.00 -> 13.25. The current value equals an older one,
+        # but what it moved from is the value in between.
+        repository = MarketObservationRepository(session)
+        repository.add_all(
+            [
+                observation(value="13.25", reference_date=date(2026, 6, 1)),
+                observation(value="13.00", reference_date=date(2026, 7, 1)),
+                observation(value="13.25", reference_date=date(2026, 8, 1)),
+            ]
+        )
+        session.flush()
+
+        previous = repository.before_last_change(IndicatorCode.SELIC_TARGET)
+
+        assert previous is not None
+        assert previous.value == Decimal("13.00")
+
+    def test_a_scale_change_is_not_a_rate_change(self, session):
+        # "13.250" is the same rate as "13.25" published to one more
+        # decimal. Treating that as movement would show "+0,000 p.p." as if
+        # something had happened.
+        repository = MarketObservationRepository(session)
+        repository.add_all(
+            [
+                observation(value="13.25", reference_date=date(2026, 6, 1)),
+                observation(value="13.250", reference_date=date(2026, 7, 1)),
+            ]
+        )
+        session.flush()
+
+        assert repository.before_last_change(IndicatorCode.SELIC_TARGET) is None
+
+    def test_is_none_when_the_series_has_never_moved(self, session):
+        repository = MarketObservationRepository(session)
+        repository.add_all(
+            [
+                observation(value="13.25", reference_date=date(2026, 6, 1)),
+                observation(value="13.25", reference_date=date(2026, 7, 1)),
+            ]
+        )
+        session.flush()
+
+        assert repository.before_last_change(IndicatorCode.SELIC_TARGET) is None
+
+    def test_is_none_when_nothing_was_ever_collected(self, session):
+        repository = MarketObservationRepository(session)
+
+        assert repository.before_last_change(IndicatorCode.SELIC_TARGET) is None
+
+    def test_a_correction_to_an_old_value_is_not_a_movement(self, session):
+        # A revision replaces what a reference date says; it must be read
+        # through the same current-revision rule as `history`, or a
+        # correction would look like the rate having changed twice.
+        repository = MarketObservationRepository(session)
+        repository.add_all(
+            [
+                observation(
+                    value="13.00",
+                    reference_date=date(2026, 6, 1),
+                    collected_at=datetime(2026, 6, 2, 12, 0, tzinfo=UTC),
+                ),
+                observation(value="14.00", reference_date=date(2026, 7, 1)),
+            ]
+        )
+        session.flush()
+        # June is corrected to 13.50, later than it was first collected.
+        repository.add_all(
+            [
+                observation(
+                    value="13.50",
+                    reference_date=date(2026, 6, 1),
+                    collected_at=datetime(2026, 6, 20, 12, 0, tzinfo=UTC),
+                )
+            ]
+        )
+        session.flush()
+
+        previous = repository.before_last_change(IndicatorCode.SELIC_TARGET)
+
+        assert previous is not None
+        assert previous.value == Decimal("13.50")

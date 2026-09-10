@@ -46,8 +46,23 @@ export default defineConfig({
   // Retries only in CI. Locally a retry hides a flake instead of showing it,
   // and a flaky financial dashboard test is a bug worth seeing.
   retries: isCI ? 2 : 0,
-  workers: isCI ? 1 : undefined,
+
+  // Four workers rather than the default half-the-cores. This suite runs on
+  // a development workstation, next to the browser and editor the developer
+  // is using, and it starts three Next.js servers of its own. At six
+  // workers, assertions began losing races for CPU against that background
+  // load: a chart with no plotted line, a drawer that would not open, a
+  // table overflowing because its stylesheet had not arrived. Each looked
+  // like a different bug, none reproduced alone, and all of them were the
+  // machine being busy.
+  workers: isCI ? 1 : 4,
   reporter: isCI ? [["github"], ["html", { open: "never" }]] : [["list"]],
+
+  // Ten seconds instead of five, for the same reason as the worker count. A
+  // server-rendered page that has to fetch, ship and hydrate has a real
+  // first-paint cost, and a suite that fails when the machine is busy
+  // teaches the developer to rerun it rather than to read it.
+  expect: { timeout: 10_000 },
 
   use: {
     baseURL: FRONTEND_URL,

@@ -59,12 +59,14 @@ def market_summary(session: DbSession) -> MarketSummaryResponse:
     summaries: list[IndicatorSummary] = []
     for code, indicator in INDICATOR_CATALOG.items():
         latest = observations.latest(code)
+        previous = observations.before_last_change(code) if latest else None
         reference = _source_reference(code)
         last_run = runs.last_run(reference) if reference else None
         summaries.append(
             IndicatorSummary(
                 indicator=IndicatorResponse.from_domain(indicator),
                 latest=ObservationResponse.from_domain(latest) if latest else None,
+                previous=ObservationResponse.from_domain(previous) if previous else None,
                 last_run=CollectionRunResponse.from_domain(last_run) if last_run else None,
             )
         )

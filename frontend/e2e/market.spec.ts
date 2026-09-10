@@ -11,6 +11,60 @@ import { expect, test } from "@playwright/test";
 import { SEEDED } from "./helpers/seeded-data";
 import { indicatorCard, provenanceTrigger } from "./helpers/ui";
 
+test.describe("movement", () => {
+  test("reports the change from the previous value, in percentage points", async ({
+    page,
+  }) => {
+    await page.goto("/market");
+    const card = indicatorCard(page, SEEDED.selicTarget.label);
+
+    // Percentage points, not percent: the interval between two annual rates
+    // is not itself an annual rate.
+    await expect(card.getByText(SEEDED.selicTarget.delta)).toBeVisible();
+    await expect(
+      card.getByText(SEEDED.selicTarget.previousValue),
+    ).toBeVisible();
+    await expect(
+      card.getByText(SEEDED.selicTarget.previousReferenceDate),
+    ).toBeVisible();
+  });
+
+  test("skips repeated values to find the last real movement", async ({
+    page,
+  }) => {
+    // The eleven observations after the step all carry the current value.
+    // A difference against the previous observation would read as no
+    // movement, which for a policy rate is what happens between decisions.
+    await page.goto("/market");
+    const card = indicatorCard(page, SEEDED.selicTarget.label);
+
+    await expect(card.getByText("0,00 p.p.")).toHaveCount(0);
+  });
+
+  test("says what the movement means for a borrower", async ({ page }) => {
+    // Colour is not the message. A rise in a financing rate is spelled out
+    // for anyone who hears the page rather than sees it.
+    await page.goto("/market");
+    const card = indicatorCard(page, SEEDED.vehicleRate.label);
+
+    await expect(card.getByText(SEEDED.vehicleRate.delta)).toBeVisible();
+    await expect(
+      card.getByText(/desfavorável para quem toma crédito/),
+    ).toBeAttached();
+  });
+
+  test("shows no movement for a series that has only one value", async ({
+    page,
+  }) => {
+    await page.goto("/market");
+    const card = indicatorCard(page, SEEDED.mortgageMarket.label);
+
+    await expect(card.getByText(SEEDED.mortgageMarket.latestValue)).toBeVisible();
+    await expect(card.getByText(/p\.p\./)).toHaveCount(0);
+    await expect(card.getByText(/antes/)).toHaveCount(0);
+  });
+});
+
 test.describe("market dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/market");
@@ -31,7 +85,7 @@ test.describe("market dashboard", () => {
     const card = indicatorCard(page, SEEDED.selicTarget.label);
 
     await expect(
-      card.getByText(`Data de referência ${SEEDED.selicTarget.latestReferenceDate}`),
+      card.getByText(`Referência ${SEEDED.selicTarget.latestReferenceDate}`),
     ).toBeVisible();
   });
 

@@ -78,6 +78,11 @@ export interface IndicatorSummary {
   /** Null when nothing has been collected. Render "no observations yet",
    * never a zero, which would read as a real rate. */
   latest: Observation | null;
+  /** The observation that held the value before the current one, which is
+   * not the previous reference date: a policy rate published daily repeats
+   * the same number between decisions. Null when the series has never held
+   * a different value. */
+  previous: Observation | null;
   last_run: CollectionRun | null;
 }
 

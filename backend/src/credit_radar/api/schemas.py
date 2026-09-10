@@ -124,12 +124,19 @@ class IndicatorSummary(BaseModel):
     ``latest`` is null when nothing has been collected yet. That is a real
     state the UI must render as "no observations yet" rather than as a zero,
     which is why it is modelled explicitly instead of defaulted.
+
+    ``previous`` is the observation that held the value before the current
+    one, which is not the previous reference date: a daily-published policy
+    rate repeats the same number between decisions, and a difference against
+    yesterday would read as no movement for weeks. It is null when the
+    series has never held a different value.
     """
 
     model_config = ConfigDict(frozen=True)
 
     indicator: IndicatorResponse
     latest: ObservationResponse | None
+    previous: ObservationResponse | None
     last_run: CollectionRunResponse | None
 
 
