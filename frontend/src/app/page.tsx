@@ -14,7 +14,7 @@ import {
   BackendOfflineState,
   NotImplementedState,
 } from "@/components/common/state-messages";
-import { IndicatorCard } from "@/components/market/indicator-card";
+import { IndicatorCard } from "@/features/market/components/indicator-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,

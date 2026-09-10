@@ -6,8 +6,6 @@
  * succeeded.
  */
 
-import { CheckCircle2, CircleSlash, XCircle } from "lucide-react";
-
 import { PageHeader } from "@/components/app-shell/page-header";
 import { BackendOfflineState } from "@/components/common/state-messages";
 import { Badge } from "@/components/ui/badge";
@@ -26,68 +24,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CollectionStatusBadge } from "@/features/data-sources/components/collection-status-badge";
+import { PLANNED_PROVIDERS } from "@/features/data-sources/planned-providers";
 import { getMarketSummary } from "@/lib/api/market";
 import { formatDateTime, formatRelativeTime } from "@/lib/format";
-import { COLLECTION_STATUS_LABELS, INDICATOR_LABELS } from "@/lib/labels";
-import type { CollectionStatus } from "@/lib/api/types";
-
-/** Providers in the planned architecture, including the unbuilt ones.
- *
- * Listed so the page reflects the real integration surface rather than only
- * the part that happens to work. */
-const PLANNED_PROVIDERS = [
-  {
-    name: "Banco Central — SGS",
-    kind: "API pública oficial",
-    implemented: true,
-    note: "Séries de mercado e macroeconômicas. Sem autenticação e sem dado pessoal.",
-  },
-  {
-    name: "Banco Central — SCR / Registrato",
-    kind: "Relatório autenticado",
-    implemented: false,
-    note: "Exige login gov.br, então vai precisar de autenticação assistida por uma pessoa.",
-  },
-  {
-    name: "Serasa",
-    kind: "Conta autenticada",
-    implemented: false,
-    note: "Score, negativações e propostas. Escala própria, mantida separada dos outros bureaus.",
-  },
-  {
-    name: "Quod / SPC / Equifax",
-    kind: "Conta autenticada",
-    implemented: false,
-    note: "Metodologias independentes. Nunca combinadas em um score único inventado.",
-  },
-];
-
-function StatusBadge({ status }: { status: CollectionStatus }) {
-  const label = COLLECTION_STATUS_LABELS[status];
-
-  if (status === "success") {
-    return (
-      <Badge variant="secondary" className="gap-1">
-        <CheckCircle2 className="size-3" />
-        {label}
-      </Badge>
-    );
-  }
-  if (status === "no_data") {
-    return (
-      <Badge variant="outline" className="gap-1">
-        <CircleSlash className="size-3" />
-        {label}
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="destructive" className="gap-1">
-      <XCircle className="size-3" />
-      {label}
-    </Badge>
-  );
-}
+import { INDICATOR_LABELS } from "@/lib/labels";
 
 export default async function DataSourcesPage() {
   const summary = await getMarketSummary();
@@ -138,7 +79,7 @@ export default async function DataSourcesPage() {
                         </TableCell>
                         <TableCell>
                           {entry.last_run ? (
-                            <StatusBadge status={entry.last_run.status} />
+                            <CollectionStatusBadge status={entry.last_run.status} />
                           ) : (
                             <Badge variant="outline">Nunca coletada</Badge>
                           )}

@@ -10,8 +10,8 @@ import {
   BackendOfflineState,
   EmptyState,
 } from "@/components/common/state-messages";
-import { IndicatorCard } from "@/components/market/indicator-card";
-import { IndicatorHistoryChart } from "@/components/market/indicator-history-chart";
+import { IndicatorCard } from "@/features/market/components/indicator-card";
+import { IndicatorHistoryChart } from "@/features/market/components/indicator-history-chart";
 import {
   Card,
   CardContent,
@@ -20,23 +20,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CHARTED_SERIES } from "@/features/market/charted-series";
 import { getIndicatorHistory, getMarketSummary } from "@/lib/api/market";
 import { FREQUENCY_LABELS, INDICATOR_LABELS, UNIT_LABELS } from "@/lib/labels";
-import type { IndicatorCode } from "@/lib/api/types";
-
-/** Charted series, and how far back each is worth showing.
- *
- * The Selic target is a daily series, so a shorter window keeps the chart
- * readable; the credit rates are monthly and need years to show a trend. */
-const CHARTED: Array<{ code: IndicatorCode; from: string }> = [
-  { code: "SELIC_TARGET", from: "2024-01-01" },
-  { code: "VEHICLE_FINANCING_RATE_PF", from: "2023-09-01" },
-];
 
 export default async function MarketPage() {
   const [summary, ...series] = await Promise.all([
     getMarketSummary(),
-    ...CHARTED.map((entry) =>
+    ...CHARTED_SERIES.map((entry) =>
       getIndicatorHistory(entry.code, { from: entry.from, limit: 5000 }),
     ),
   ]);
@@ -68,7 +59,7 @@ export default async function MarketPage() {
             </section>
 
             <section className="space-y-4">
-              {CHARTED.map((entry, index) => {
+              {CHARTED_SERIES.map((entry, index) => {
                 const result = series[index];
                 const label = INDICATOR_LABELS[entry.code];
                 const indicator = summary.data.indicators.find(

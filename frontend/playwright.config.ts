@@ -79,6 +79,13 @@ export default defineConfig({
     },
   ],
 
+  // Servers are never reused, not even locally. Global setup rebuilds the
+  // frontend and the backend reads its code at import, so a reused process
+  // would serve an artefact that was replaced underneath it. That produced a
+  // run where thirteen unrelated tests failed once and then passed twice,
+  // which is the worst kind of failure: it looks like flakiness and is
+  // actually a stale build. A few seconds of startup is the price of every
+  // run testing the code that is on disk.
   webServer: [
     {
       command: `uv run uvicorn credit_radar.api.app:app --host 127.0.0.1 --port ${BACKEND_PORT}`,
@@ -87,7 +94,7 @@ export default defineConfig({
       // green start means the whole backend path works and not just that a
       // port opened.
       url: `${BACKEND_URL}/health`,
-      reuseExistingServer: !isCI,
+      reuseExistingServer: false,
       timeout: 120_000,
       env: {
         CREDIT_RADAR_DATABASE_URL: E2E_DATABASE_URL,
@@ -98,7 +105,7 @@ export default defineConfig({
     {
       command: `pnpm exec next start --port ${FRONTEND_PORT}`,
       url: FRONTEND_URL,
-      reuseExistingServer: !isCI,
+      reuseExistingServer: false,
       timeout: 120_000,
       env: {
         CREDIT_RADAR_API_INTERNAL_URL: BACKEND_URL,
@@ -108,7 +115,7 @@ export default defineConfig({
     {
       command: `pnpm exec next start --port ${OFFLINE_FRONTEND_PORT}`,
       url: OFFLINE_FRONTEND_URL,
-      reuseExistingServer: !isCI,
+      reuseExistingServer: false,
       timeout: 120_000,
       env: {
         CREDIT_RADAR_API_INTERNAL_URL: UNREACHABLE_BACKEND_URL,
