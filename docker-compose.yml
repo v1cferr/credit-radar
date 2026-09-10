@@ -1,16 +1,12 @@
-# Local development stack.
-#
-# Only the database is defined so far. The backend and frontend services
-# arrive together with their Dockerfiles, so that `docker compose up` always
-# describes something that actually runs.
+# Local development and self-hosting stack.
 #
 # No secrets belong in this file. The database values below are
-# development-only defaults for a service bound to loopback. Anything
+# development-only defaults for a service bound to loopback; anything
 # resembling a real credential must be injected from the environment.
 #
-# Host ports are configurable and default to an offset range, because this
-# machine also runs unrelated projects that already hold 5432, 3000 and
-# 8000. Override them in a root .env file if they collide.
+# Host ports default to an offset range because this machine also runs
+# unrelated projects that already hold 5432, 8000 and 3000. Override them in
+# a root .env file if they collide.
 
 name: credit-radar
 
@@ -34,6 +30,67 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    restart: unless-stopped
+
+  # Migrations run as their own one-shot service rather than on backend
+  # startup, so a schema change is an explicit, observable step and two
+  # backend replicas could never race to apply the same migration.
+  migrate:
+    build:
+      context: ./backend
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      CREDIT_RADAR_DATABASE_URL: >-
+        postgresql+psycopg://${POSTGRES_USER:-credit_radar}:${POSTGRES_PASSWORD:-credit_radar}@postgres:5432/${POSTGRES_DB:-credit_radar}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      # Inside the compose network the database is reached by service name
+      # on its container port, not through the published host port.
+      CREDIT_RADAR_DATABASE_URL: >-
+        postgresql+psycopg://${POSTGRES_USER:-credit_radar}:${POSTGRES_PASSWORD:-credit_radar}@postgres:5432/${POSTGRES_DB:-credit_radar}
+      CREDIT_RADAR_LOG_LEVEL: ${CREDIT_RADAR_LOG_LEVEL:-INFO}
+      # The browser talks to the backend through the published host port, so
+      # that is the origin CORS must allow.
+      CREDIT_RADAR_CORS_ORIGINS: http://localhost:${FRONTEND_HOST_PORT:-3007}
+    ports:
+      - "127.0.0.1:${BACKEND_HOST_PORT:-8007}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        ["CMD", "python", "-c",
+         "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the client bundle at build time: Next.js inlines
+        # NEXT_PUBLIC_* values. Only genuinely public configuration here.
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:${BACKEND_HOST_PORT:-8007}
+    environment:
+      # Server-side rendering stays inside the compose network.
+      CREDIT_RADAR_API_INTERNAL_URL: http://backend:8000
+    ports:
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-3007}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

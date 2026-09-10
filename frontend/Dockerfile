@@ -10,8 +10,15 @@ RUN corepack enable
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
+
+# --ignore-scripts blocks every dependency install script from executing
+# while building an image that will serve credit data. Nothing needed to
+# compile the app relies on one: the only package that asks is a native
+# resolver used by ESLint, which falls back to its prebuilt binary and is
+# not run during the build anyway.
 RUN --mount=type=cache,target=/pnpm/store \
-    pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile
+    pnpm config set store-dir /pnpm/store \
+    && pnpm install --frozen-lockfile --ignore-scripts
 
 
 FROM node:22-alpine AS builder
@@ -30,7 +37,12 @@ ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8007
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN pnpm build
+
+# Invoked directly rather than through `pnpm build`: pnpm re-verifies the
+# dependency tree before running a script, decides the --ignore-scripts
+# install does not match the lockfile state, and tries to reinstall, which
+# cannot prompt without a TTY. The command is the same one the script runs.
+RUN node_modules/.bin/next build
 
 
 FROM node:22-alpine AS runtime
