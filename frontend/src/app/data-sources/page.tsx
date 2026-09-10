@@ -29,6 +29,9 @@ import { PLANNED_PROVIDERS } from "@/features/data-sources/planned-providers";
 import { getMarketSummary } from "@/lib/api/market";
 import { formatDateTime, formatRelativeTime } from "@/lib/format";
 import { INDICATOR_LABELS } from "@/lib/labels";
+import { sectionMetadata } from "@/components/app-shell/section-metadata";
+
+export const metadata = sectionMetadata("/data-sources");
 
 export default async function DataSourcesPage() {
   const summary = await getMarketSummary();

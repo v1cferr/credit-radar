@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/card";
 import { getMarketSummary } from "@/lib/api/market";
 import type { IndicatorCode } from "@/lib/api/types";
+import { sectionMetadata } from "@/components/app-shell/section-metadata";
 
 /** Indicators that belong on the overview's market panel. */
 const HEADLINE_INDICATORS: IndicatorCode[] = [
@@ -32,6 +33,8 @@ const HEADLINE_INDICATORS: IndicatorCode[] = [
   "VEHICLE_FINANCING_RATE_PF",
   "MORTGAGE_RATE_MARKET_PF",
 ];
+
+export const metadata = sectionMetadata("/");
 
 export default async function OverviewPage() {
   const summary = await getMarketSummary();

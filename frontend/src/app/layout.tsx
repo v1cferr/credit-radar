@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { AppSidebar } from "@/components/app-shell/app-sidebar";
 import { MobileTabBar } from "@/components/app-shell/mobile-tab-bar";
+import { TITLE_TEMPLATE } from "@/components/app-shell/section-metadata";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -10,13 +11,42 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-mono", subsets: ["latin"] });
 
+const DESCRIPTION = "Inteligência de crédito pessoal para o mercado brasileiro";
+
+/**
+ * Metadata carries the product's identity and nothing else.
+ *
+ * Every field here is a constant. A title, a description, an Open Graph tag
+ * and a manifest are quoted verbatim by whatever renders a link preview, so
+ * none of them may contain a score, a balance, a limit, a CPF or a
+ * collection time -- not even a hint of one, such as "3 dívidas em aberto".
+ * Sections contribute their own name through the template and nothing more.
+ */
 export const metadata: Metadata = {
-  title: "CreditRadar",
-  description:
-    "Inteligência de crédito pessoal para o mercado brasileiro",
-  // This is a private, single-user application over sensitive financial
-  // data. It must never be indexed.
-  robots: { index: false, follow: false },
+  title: { default: "CreditRadar", template: TITLE_TEMPLATE },
+  description: DESCRIPTION,
+  applicationName: "CreditRadar",
+  // A private, single-user application over sensitive financial data. It
+  // must never be indexed, and `nocache` also keeps a search engine from
+  // holding a copy of a page it should not have fetched at all.
+  robots: { index: false, follow: false, nocache: true },
+  openGraph: {
+    type: "website",
+    siteName: "CreditRadar",
+    title: "CreditRadar",
+    description: DESCRIPTION,
+    locale: "pt_BR",
+  },
+};
+
+export const viewport: Viewport = {
+  // Both themes declared, matching --background in each, so the browser
+  // chrome does not frame the page in the wrong colour.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({
