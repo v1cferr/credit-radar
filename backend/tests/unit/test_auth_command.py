@@ -63,10 +63,14 @@ class TestSourceSelection:
 
 
 class TestRegistratoEntryPoint:
-    def test_it_uses_the_documented_entry_page(self):
-        # Not a deep link into the application, which has moved before and
-        # answers 503 to a plain client.
-        assert registrato.ENTRY_URL == "https://www.bcb.gov.br/meubc/registrato"
+    def test_it_opens_the_application_and_not_the_help_page(self):
+        # The published Registrato page is an FAQ: opening it left a person
+        # hunting for one small "Fazer login" link among help articles.
+        assert registrato.ENTRY_URL == "https://meubc.bcb.gov.br/meubc/"
+
+    def test_it_knows_how_to_confirm_the_form_rendered(self):
+        # gov.br renders client-side, so a loaded page can still be blank.
+        assert "accountId" in registrato.LOGIN_FORM_SELECTOR
 
     def test_it_states_that_a_person_completes_the_challenge(self):
         notes = registrato.SIGN_IN_NOTES.lower()

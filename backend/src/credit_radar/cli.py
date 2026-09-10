@@ -253,7 +253,23 @@ def authenticate(source: str) -> int:
             chromium_path=settings.chromium_path,
         ) as context:
             page = context.pages[0] if context.pages else context.new_page()
-            page.goto(module.ENTRY_URL)
+            # networkidle, then wait for the form: gov.br renders client-side,
+            # so "loaded" and "usable" are not the same moment and the
+            # difference is a blank window.
+            page.goto(module.ENTRY_URL, wait_until="networkidle")
+
+            selector = getattr(module, "LOGIN_FORM_SELECTOR", None)
+            if selector:
+                try:
+                    page.wait_for_selector(selector, timeout=30_000)
+                except Exception:
+                    # Said rather than hidden. A blank window looks identical
+                    # to a broken tool from the outside, so if the form did
+                    # not appear the person should know that is what happened
+                    # and not spend ten minutes looking for a field.
+                    print("  The sign-in form did not render within 30s.")
+                    print("  The window is still open, so try reloading it there.")
+                    print()
 
             print("  A browser window is open. Sign in there, then come back.")
             print("  Nothing is read from the page while you do.")
