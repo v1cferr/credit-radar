@@ -29,6 +29,7 @@ import {
 import {
   lineTypeFor,
   mergeSeries,
+  type MergedRow,
   type PlottedSeries,
 } from "@/features/market/series-points";
 import { formatDate, formatDecimal } from "@/lib/format";
@@ -82,13 +83,17 @@ export function IndicatorChart({ series }: { series: PlottedSeries[] }) {
               labelFormatter={(label) => formatDate(String(label))}
               // Formats the published string, so the tooltip never shows a
               // value re-rendered from a float.
-              formatter={(value, name) => {
-                const label = config[String(name)]?.label;
-                return typeof value === "string" ? (
+              formatter={(_value, name, item) => {
+                const code = String(name);
+                const label = config[code]?.label;
+                const row = item?.payload as MergedRow | undefined;
+                const published = row?.published?.[code];
+
+                return published ? (
                   <span className="flex w-full justify-between gap-3">
                     <span className="text-muted-foreground">{label}</span>
                     <span className="numeric font-medium">
-                      {formatDecimal(value)}
+                      {formatDecimal(published)}
                     </span>
                   </span>
                 ) : null;

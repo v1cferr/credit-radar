@@ -51,7 +51,13 @@ interface NavItemBase {
 export type NavItem = NavItemBase &
   (
     | { implemented: true }
-    /** What has to exist before this section can show real data. */
+    /**
+     * What has to exist before this section can show real data.
+     *
+     * Reads after "Depende ", so it carries its own preposition: Portuguese
+     * contracts "de" with a following article, and a fixed "de" prefix
+     * produced "depende de a persistência" and "depende de os motores".
+     */
     | { implemented: false; requires: string }
   );
 
@@ -82,14 +88,15 @@ export const NAVIGATION: NavGroup[] = [
         icon: BarChart3,
         implemented: false,
         requires:
-          "um provedor autenticado de bureau (Serasa, Quod, SPC ou Equifax), cada um mantendo sua própria escala e seu próprio histórico",
+          "de um provedor autenticado de bureau (Serasa, Quod, SPC ou Equifax), cada um mantendo sua própria escala e seu próprio histórico",
       },
       {
         title: "Negativações",
         href: "/negative-records",
         icon: FileWarning,
         implemented: false,
-        requires: "um provedor de bureau que informe as negativações ativas",
+        requires:
+          "de um provedor de bureau que informe as negativações ativas",
       },
       {
         title: "Consultas ao CPF",
@@ -97,7 +104,8 @@ export const NAVIGATION: NavGroup[] = [
         href: "/inquiries",
         icon: Search,
         implemented: false,
-        requires: "um provedor de bureau que informe as consultas ao CPF",
+        requires:
+          "de um provedor de bureau que informe as consultas ao CPF",
       },
     ],
   },
@@ -110,7 +118,7 @@ export const NAVIGATION: NavGroup[] = [
         icon: CircleDollarSign,
         implemented: false,
         requires:
-          "descoberta de dívidas em bureaus, credores e plataformas de negociação, com normalização de credor e contrato",
+          "da descoberta de dívidas em bureaus, credores e plataformas de negociação, com normalização de credor e contrato",
       },
       {
         title: "Propostas de acordo",
@@ -119,7 +127,7 @@ export const NAVIGATION: NavGroup[] = [
         icon: Handshake,
         implemented: false,
         requires:
-          "coleta de propostas em várias plataformas, para que a mesma dívida possa ser comparada entre elas ao longo do tempo",
+          "da coleta de propostas em várias plataformas, para que a mesma dívida possa ser comparada entre elas ao longo do tempo",
       },
       {
         title: "Exposição de crédito",
@@ -128,7 +136,7 @@ export const NAVIGATION: NavGroup[] = [
         icon: Landmark,
         implemented: false,
         requires:
-          "a persistência da série mensal do SCR — o leitor do relatório do Registrato já existe e reconhece o histórico completo, mas ainda não há onde guardá-lo",
+          "da persistência da série mensal do SCR — o leitor do relatório do Registrato já existe e reconhece o histórico completo, mas ainda não há onde guardá-lo",
       },
     ],
   },
@@ -147,7 +155,7 @@ export const NAVIGATION: NavGroup[] = [
         icon: Calculator,
         implemented: false,
         requires:
-          "os motores de amortização (SAC e Price) e o cálculo do CET, para comparar uma proposta com as taxas de mercado",
+          "dos motores de amortização (SAC e Price) e do cálculo do CET, para comparar uma proposta com as taxas de mercado",
       },
       {
         title: "Prontidão",
@@ -155,14 +163,14 @@ export const NAVIGATION: NavGroup[] = [
         icon: Gauge,
         implemented: false,
         requires:
-          "dados de score, dívidas, exposição e renda, já que um indicador de prontidão construído sobre qualquer um deles isolado seria enganoso",
+          "de dados de score, dívidas, exposição e renda, já que um indicador de prontidão construído sobre qualquer um deles isolado seria enganoso",
       },
       {
         title: "Objetivos",
         href: "/goals",
         icon: Target,
         implemented: false,
-        requires: "a modelagem de objetivos financeiros",
+        requires: "da modelagem de objetivos financeiros",
       },
     ],
   },
@@ -182,7 +190,7 @@ export const NAVIGATION: NavGroup[] = [
         icon: History,
         implemented: false,
         requires:
-          "uma linha do tempo de eventos de crédito sobre as séries coletadas",
+          "de uma linha do tempo de eventos de crédito sobre as séries coletadas",
       },
     ],
   },

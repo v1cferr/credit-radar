@@ -47,7 +47,7 @@ export function PlannedPage({ href }: { href: string }) {
             </p>
             <p className="text-xs text-muted-foreground">
               Faz parte da arquitetura planejada, mas ainda não tem módulo no
-              backend. Depende de {item.requires}. Nada é exibido aqui em vez
+              backend. Depende {item.requires}. Nada é exibido aqui em vez
               de números de exemplo, porque dado financeiro inventado é pior
               do que dado nenhum.
             </p>

@@ -15,7 +15,7 @@ import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
-  FRESHNESS_LABELS,
+  FRESHNESS_COUNT_LABELS,
   FRESHNESS_TONE,
   freshnessOf,
   type Freshness,
@@ -85,7 +85,9 @@ export function CollectionHealth({
                 {counts.get(freshness)}
               </span>
               <span className="text-muted-foreground">
-                {FRESHNESS_LABELS[freshness].toLocaleLowerCase("pt-BR")}
+                {counts.get(freshness) === 1
+                  ? FRESHNESS_COUNT_LABELS[freshness].one
+                  : FRESHNESS_COUNT_LABELS[freshness].many}
               </span>
             </li>
           ))}

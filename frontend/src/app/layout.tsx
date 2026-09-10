@@ -54,8 +54,17 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    // The font variables belong on the root element, not on the body. The
+    // `font-sans` utility is applied to <html>, so a variable defined one
+    // level down does not resolve there: the declaration is invalid, and
+    // the whole document falls back to the browser's default serif. That
+    // is how this application shipped every page in Times New Roman.
+    <html
+      lang="pt-BR"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="antialiased">
         {/* First thing in the document, and blocking: it resolves the theme
             before anything paints. Deferred, the first frame would be light
             and then flip, which on a dashboard opened at night is a white

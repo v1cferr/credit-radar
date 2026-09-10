@@ -41,6 +41,17 @@ describe("section plans", () => {
     }
   });
 
+  it("phrases every dependency to read after \"Depende\"", () => {
+    // Portuguese contracts "de" with a following article, so a dependency
+    // has to supply its own preposition: a fixed "de" prefix produced
+    // "depende de a persistência" and "depende de os motores".
+    const opening = /^(de|da|do|das|dos) /;
+    for (const item of NAV_ITEMS) {
+      if (item.implemented) continue;
+      expect(item.requires, `${item.href}: "${item.requires}"`).toMatch(opening);
+    }
+  });
+
   it("states no figure, so nothing reads as a fact about a credit position", () => {
     // A number on one of these pages would be read as real, whatever label
     // sits beside it. The only digits allowed are inside a name.

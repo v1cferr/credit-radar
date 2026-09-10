@@ -39,6 +39,24 @@ export function freshnessOf(
     : "fresh";
 }
 
+/**
+ * The label as it reads after a count, in both numbers.
+ *
+ * Portuguese agrees in number, so "7 atualizada" is wrong where English
+ * would get away with one form. Kept beside the badge labels rather than
+ * derived by appending an "s", which would produce "7 falhous".
+ */
+export const FRESHNESS_COUNT_LABELS: Record<
+  Freshness,
+  { one: string; many: string }
+> = {
+  fresh: { one: "atualizada", many: "atualizadas" },
+  stale: { one: "desatualizada", many: "desatualizadas" },
+  failed: { one: "falhou", many: "falharam" },
+  no_data: { one: "sem dados", many: "sem dados" },
+  never: { one: "nunca coletada", many: "nunca coletadas" },
+};
+
 export const FRESHNESS_LABELS: Record<Freshness, string> = {
   fresh: "Atualizada",
   stale: "Desatualizada",

@@ -44,7 +44,7 @@ export function PlannedSections() {
                     {item.title}
                   </Link>
                   <p className="line-clamp-2 text-xs text-muted-foreground">
-                    Depende de {item.requires}
+                    Depende {item.requires}
                   </p>
                 </div>
               </li>

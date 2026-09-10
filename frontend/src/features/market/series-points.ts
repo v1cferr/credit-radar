@@ -61,13 +61,25 @@ export interface PlottedSeries {
   points: SeriesPoint[];
 }
 
-/** A row of the merged dataset: one reference date across every series. */
-export type MergedRow = { d: string } & Record<string, string | undefined>;
+/**
+ * A row of the merged dataset: one reference date across every series.
+ *
+ * Each series contributes two entries: its code holding the plotted number,
+ * and an entry in `published` holding the string the source published. The
+ * chart plots the number -- Recharts compares and scales what it is given,
+ * and handed a string it computes a domain from text -- while the tooltip
+ * reads the published string, so the figure on screen is never a float
+ * re-rendered as decimal.
+ */
+export type MergedRow = Record<string, unknown> & {
+  d: string;
+  published: Record<string, string>;
+};
 
 /**
  * Merge several series into rows keyed by reference date.
  *
- * A date where one series has no observation is left undefined rather than
+ * A date where one series has no observation is left absent rather than
  * carried over from the previous date or interpolated. The chart then draws
  * a gap, which is what a gap is: the source published nothing. Filling it
  * would invent a rate.
@@ -77,8 +89,9 @@ export function mergeSeries(series: PlottedSeries[]): MergedRow[] {
 
   for (const entry of series) {
     for (const point of entry.points) {
-      const row = rows.get(point.d) ?? { d: point.d };
-      row[entry.code] = point.v;
+      const row = rows.get(point.d) ?? { d: point.d, published: {} };
+      row[entry.code] = Number(point.v);
+      row.published[entry.code] = point.v;
       rows.set(point.d, row);
     }
   }

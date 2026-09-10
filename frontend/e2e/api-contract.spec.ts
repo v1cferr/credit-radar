@@ -135,5 +135,14 @@ test.describe("the page shows what the API returned", () => {
       [...path.matchAll(/[ML]\s*(-?[\d.]+),/g)].map((match) => match[1]),
     );
     expect(positions.size).toBe(body.observations.length);
+
+    // And one unbroken path. Every `M` after the first starts a new
+    // subpath, which is how Recharts draws a gap -- correct when a date
+    // has no observation, and a bug when none is missing. The seeded
+    // series is continuous, and the line was in fact splitting in two
+    // because the merged rows carried the published string rather than a
+    // number, leaving Recharts to scale text.
+    const subpaths = (path.match(/M/g) ?? []).length;
+    expect(subpaths).toBe(1);
   });
 });
