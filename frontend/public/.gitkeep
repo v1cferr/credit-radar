@@ -1,0 +1,6 @@
+Keeps this directory in Git.
+
+The Dockerfile copies public/ into the runtime image, and Git does not track
+empty directories, so without this file a fresh clone would have no public/
+and the image build would fail on a missing path. Delete it once there is a
+real static asset here.

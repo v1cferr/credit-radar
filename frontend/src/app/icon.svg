@@ -1,0 +1,10 @@
+<!-- App icon. Next.js serves an `icon.*` in app/ as the favicon.
+     Replaces the create-next-app default, which was Vercel's logo and
+     implied an affiliation this project does not have. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="7" fill="#0f172a" />
+  <circle cx="16" cy="16" r="9.5" stroke="#38bdf8" stroke-width="1.5" opacity="0.35" />
+  <circle cx="16" cy="16" r="5.5" stroke="#38bdf8" stroke-width="1.5" opacity="0.6" />
+  <circle cx="16" cy="16" r="1.8" fill="#38bdf8" />
+  <path d="M16 16 L25 10" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" />
+</svg>
