@@ -70,6 +70,14 @@ them, and never contacts a provider directly.
   the same HTTP client will later carry bureau responses containing a CPF,
   debts and account data, and the habit established now is the one that will
   still be in place then.
+- **Request URLs are never logged either.** The HTTP client libraries
+  (`httpx`, `httpcore`) log one line per request at INFO, including the full
+  URL. Harmless for a public Banco Central series; not harmless for a bureau
+  or SCR endpoint that can carry a CPF or an account identifier in its query
+  string. Those loggers are pinned to WARNING in one place
+  (`credit_radar.logging_config`) rather than redacted per call site, because
+  a control that has to be applied correctly at every call site is one that
+  will eventually be forgotten. Warnings and errors still come through.
 - `CollectionRun.error_message` stores a failure summary only, and must never
   carry credentials or personal data.
 

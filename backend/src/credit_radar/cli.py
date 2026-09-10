@@ -17,6 +17,7 @@ from datetime import UTC, date, datetime, timedelta
 from credit_radar.config import get_settings
 from credit_radar.domain.market import INDICATOR_CATALOG, Frequency, IndicatorCode
 from credit_radar.domain.provenance import CollectionStatus
+from credit_radar.logging_config import configure_logging
 from credit_radar.persistence.database import session_scope
 from credit_radar.providers.bcb.sgs import SGS_SERIES, BcbSgsProvider
 from credit_radar.providers.http import HttpClient
@@ -197,11 +198,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    settings = get_settings()
-    logging.basicConfig(
-        level=settings.log_level.upper(),
-        format="%(levelname)s %(name)s: %(message)s",
-    )
+    configure_logging(get_settings().log_level)
 
     if args.command != "collect":  # pragma: no cover - argparse enforces this
         parser.error(f"unknown command {args.command!r}")

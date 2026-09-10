@@ -18,6 +18,7 @@ from credit_radar.api.dependencies import DbSession
 from credit_radar.api.routers import market
 from credit_radar.api.schemas import HealthResponse
 from credit_radar.config import get_settings
+from credit_radar.logging_config import configure_logging
 
 API_PREFIX = "/api/v1"
 
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    logging.basicConfig(level=settings.log_level.upper())
+    configure_logging(settings.log_level)
 
     app = FastAPI(
         title="CreditRadar API",
