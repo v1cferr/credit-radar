@@ -17,8 +17,9 @@ from datetime import UTC, date, datetime, timedelta
 from credit_radar.config import get_settings
 from credit_radar.credentials import (
     CREDENTIAL_SPECS,
+    CredentialOrigin,
     CredentialStore,
-    secret_name,
+    variable_name,
 )
 from credit_radar.domain.market import INDICATOR_CATALOG, Frequency, IndicatorCode
 from credit_radar.domain.provenance import CollectionStatus
@@ -142,19 +143,23 @@ def collect(
 
 
 def report_credentials() -> int:
-    """Report which declared credentials are present, without reading values.
+    """Report where each declared credential comes from, without reading values.
 
-    Exists so the secret wiring can be verified by the person who owns the
-    secrets, without a value being printed, logged or shown to anyone. It
-    reports PRESENCE only: it never displays, compares or validates a
-    credential, so running it is safe anywhere the output might be read.
+    Exists so the person who owns the credentials can verify the wiring
+    themselves. It reports the ORIGIN only: it never displays, compares or
+    validates a value, so the output is safe to share.
     """
+    from credit_radar.credentials import DEFAULT_ENV_FILE
+
     store = CredentialStore()
 
     if not CREDENTIAL_SPECS:
         print("No authenticated source declares credentials yet.")
         return 0
 
+    # The permission warning is not printed here: the store logs it, with the
+    # same text and the same chmod command, the first time it reads the file.
+    # Two identical warnings in one output train you to skim past both.
     incomplete = 0
 
     for source_id, spec in sorted(CREDENTIAL_SPECS.items(), key=lambda item: item[0].value):
@@ -163,24 +168,24 @@ def report_credentials() -> int:
             print(f"  {spec.notes}")
 
         availability = store.availability(source_id)
-        for key, present in availability.items():
+        for key, origin in availability.items():
             requirement = "required" if key in spec.required else "optional"
-            mark = "present" if present else "MISSING"
-            print(f"    [{mark:>7}] {secret_name(source_id, key)}  ({requirement})")
+            mark = "MISSING" if origin is CredentialOrigin.ABSENT else origin.value
+            print(f"    [{mark:>11}] {variable_name(source_id, key)}  ({requirement})")
 
-        if any(not availability[key] for key in spec.required):
+        if any(availability[key] is CredentialOrigin.ABSENT for key in spec.required):
             incomplete += 1
         print()
 
     if incomplete:
         print(
-            f"{incomplete} source(s) cannot sign in yet. Create the missing entries in "
-            "the password manager, sync them to sops, then rebuild so /run/secrets "
-            "updates."
+            f"{incomplete} source(s) cannot sign in yet. Set the missing variables in "
+            f"{DEFAULT_ENV_FILE} (copy {DEFAULT_ENV_FILE}.example) or in the "
+            "environment, then run this again."
         )
         return 1
 
-    print("Every declared credential is present.")
+    print("Every declared credential is available.")
     return 0
 
 

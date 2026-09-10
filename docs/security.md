@@ -45,8 +45,17 @@ authority to produce.
 - Nothing sensitive is committed. `.gitignore` excludes environment files,
   keys, browser profiles, raw provider captures and screenshots — as a
   security control, not housekeeping.
-- Configuration comes from the environment. `.env.example` files contain
-  placeholders only.
+- Configuration and credentials come from the environment, with
+  `backend/.env` as the local source and `.env.example` holding placeholders
+  only. One mechanism, and the portable one: it works as a file here, as
+  injected variables under Docker or systemd, and through a rendered env file
+  if a host secret manager is ever preferred.
+- A filled-in `.env` is a real file on disk, so it can outlive its deletion
+  in a local filesystem snapshot. The application warns when it is readable
+  beyond its owner.
+- Credential values are never copied into `os.environ`: this application
+  shells out to Docker and to a browser, and a subprocess would inherit
+  them.
 - The database URL is wrapped in `SecretStr`, so a printed settings object or
   a traceback cannot leak the password.
 - No secret is baked into a container image.

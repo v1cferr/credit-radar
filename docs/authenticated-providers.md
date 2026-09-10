@@ -7,9 +7,9 @@ labour that keeps identifiers out of this repository.
 
 | | |
 | --- | --- |
-| **This repository** | the *name* of a secret, the code that reads it, the login flow, the parser |
-| **The password manager** | the *value*, entered by the person it belongs to |
-| **sops / `/run/secrets`** | delivery to the running process, at runtime |
+| **This repository** | the *name* of a variable, the code that reads it, the login flow, the parser |
+| **`backend/.env`** | the *value*, written by the person it belongs to. Git-ignored |
+| **The environment** | the same variables, when a deployment injects them instead |
 | **A person, once per session** | the second factor, and the gov.br confirmation |
 
 The consequence worth stating: **nobody working on this code needs to see a
@@ -51,18 +51,50 @@ database column and must not become one: this is a single-user system, so
 there is exactly one person the data describes, and every debt, score and
 exposure record belongs to that person by construction.
 
-## Provisioning a secret
+## Provisioning a credential
 
-Following the host's existing chain, which already carries Caddy's ACME and
-Cloudflare secrets:
+```bash
+cd backend
+cp .env.example .env      # if you have not already
+chmod 600 .env
+$EDITOR .env              # uncomment and fill only what a source declares
+uv run credit-radar credentials
+```
 
-1. Create the entry in Bitwarden, value in the *password* field.
-2. Add its name to `secrets/bitwarden-secrets.json` in the dotfiles repo.
-3. `sync-secrets`, then rebuild, so `/run/secrets` updates.
-4. `credit-radar credentials` to confirm presence.
+`credentials` reports where each declared value comes from, and never prints,
+compares or validates one, so its output is safe to share.
 
-Secrets are read at runtime and never at build time, because `/nix/store` is
-world-readable and a value interpolated into a derivation would leak.
+### Why environment variables and not a host secret manager
+
+One mechanism, because it is the one that travels. A `.env` while this is a
+personal tool; injected variables under Docker or systemd; whatever a
+platform provides if this ever becomes a product. Nothing about credential
+handling is tied to the machine it currently runs on, which would not be true
+of a host-specific secret store.
+
+It also keeps sops available rather than ruling it out: sops-nix renders an
+env file and systemd injects it with `EnvironmentFile=`, which is already how
+Caddy's secrets reach it on this host. Choosing environment variables loses
+no option.
+
+The environment wins over the file, so a deployment can inject a value
+without editing anything, and a one-off override needs no file at all.
+
+### What the file costs
+
+A filled-in `.env` holds a CPF and a password for a financial institution,
+and unlike a decrypted secret on a tmpfs it is a real file on a real disk.
+Two consequences:
+
+- **It can outlive its deletion.** Local filesystem snapshots (btrfs, Time
+  Machine, anything hourly) keep a copy until they rotate. An encrypted
+  off-site backup is a smaller concern, since the copy is encrypted, but a
+  plain local snapshot is not.
+- **Permissions matter.** The application warns, once, when the file is
+  readable beyond its owner, with the `chmod` to fix it.
+
+Values are never copied into `os.environ`, because this application shells
+out to Docker and to a browser and a subprocess would inherit them.
 
 ## The second factor is never stored
 
@@ -176,6 +208,28 @@ whether the file is safe.
 
 That ordering is not a formality. A parser written against a real document
 that nobody may look at is a parser nobody can review.
+
+## If this ever becomes a product
+
+Worth writing down now, because the answer changes and the current design
+should not be mistaken for the eventual one.
+
+Today there is **no application login**, and the substitute is reach: the
+service binds to loopback and the reverse proxy answers 403 to anything that
+is not the home network. That is adequate for one trusted user on one machine
+and adequate for nothing else.
+
+A multi-user version needs, in roughly this order: an application login with
+sessions, a subject entity so observations belong to someone rather than
+being implicitly the only person's, per-subject authorization on every query,
+and encrypted per-subject credential storage instead of one shared file.
+The credential layer is the piece that changes least, since it already reads
+from an injected environment rather than from anything host-specific.
+
+The piece that changes most is the data model. It currently assumes exactly
+one subject, which is why the CPF is a credential and not a column: that
+assumption is documented and cheap to hold now, and it is the thing to revisit
+first, not last, if the product question ever becomes real.
 
 ## Legal and terms of service
 
