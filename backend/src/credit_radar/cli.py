@@ -15,24 +15,11 @@ import time
 from datetime import UTC, date, datetime, timedelta
 
 from credit_radar.config import get_settings
-from credit_radar.credentials import (
-    CREDENTIAL_SPECS,
-    CredentialOrigin,
-    CredentialStore,
-    variable_name,
-)
 from credit_radar.domain.market import INDICATOR_CATALOG, Frequency, IndicatorCode
 from credit_radar.domain.provenance import CollectionStatus
 from credit_radar.logging_config import configure_logging
 from credit_radar.persistence.database import session_scope
-from credit_radar.providers.bcb import registrato
 from credit_radar.providers.bcb.sgs import SGS_SERIES, BcbSgsProvider
-from credit_radar.providers.browser import (
-    BrowserUnavailableError,
-    browser_session,
-    has_profile,
-    profile_dir,
-)
 from credit_radar.providers.http import HttpClient
 from credit_radar.services.market_ingestion import IngestionResult, MarketIngestionService
 
@@ -142,157 +129,6 @@ def collect(
     return 0
 
 
-def report_credentials() -> int:
-    """Report where each declared credential comes from, without reading values.
-
-    Exists so the person who owns the credentials can verify the wiring
-    themselves. It reports the ORIGIN only: it never displays, compares or
-    validates a value, so the output is safe to share.
-    """
-    from credit_radar.credentials import DEFAULT_ENV_FILE
-
-    store = CredentialStore()
-
-    if not CREDENTIAL_SPECS:
-        print("No authenticated source declares credentials yet.")
-        return 0
-
-    # The permission warning is not printed here: the store logs it, with the
-    # same text and the same chmod command, the first time it reads the file.
-    # Two identical warnings in one output train you to skim past both.
-    incomplete = 0
-
-    for source_id, spec in sorted(CREDENTIAL_SPECS.items(), key=lambda item: item[0].value):
-        print(f"{source_id.value}")
-        if spec.notes:
-            print(f"  {spec.notes}")
-
-        availability = store.availability(source_id)
-        for key, origin in availability.items():
-            requirement = "required" if key in spec.required else "optional"
-            mark = "MISSING" if origin is CredentialOrigin.ABSENT else origin.value
-            print(f"    [{mark:>11}] {variable_name(source_id, key)}  ({requirement})")
-
-        if any(availability[key] is CredentialOrigin.ABSENT for key in spec.required):
-            incomplete += 1
-        print()
-
-    if incomplete:
-        print(
-            f"{incomplete} source(s) cannot sign in yet. Set the missing variables in "
-            f"{DEFAULT_ENV_FILE} (copy {DEFAULT_ENV_FILE}.example) or in the "
-            "environment, then run this again."
-        )
-        return 1
-
-    print("Every declared credential is available.")
-    return 0
-
-
-AUTHENTICATED_SOURCES = {registrato.SOURCE_ID.value: registrato}
-"""Sources with a sign-in flow. Only implemented ones appear here."""
-
-
-def wait_for_sign_in(context: object) -> None:
-    """Block until the person says they have finished signing in.
-
-    Extracted so the non-interactive branch is testable without launching a
-    browser, which is the only way to reach it otherwise.
-    """
-    try:
-        input("  Press Enter once you have finished signing in... ")
-    except EOFError:
-        # No terminal to read from, which happens when the command runs from
-        # a script or a task runner. Waiting for the window to close is the
-        # same signal by another route, and better than returning at once and
-        # saving a profile nobody signed into.
-        print("  No interactive terminal. Close the browser window when you are done.")
-        wait_for_event = getattr(context, "wait_for_event", None)
-        if callable(wait_for_event):
-            wait_for_event("close", timeout=0)
-
-
-def authenticate(source: str) -> int:
-    """Open a browser so a person can sign in, then keep the session.
-
-    The automation opens the source's own entry page and stops. It does not
-    type a password, does not answer a challenge and has no code path that
-    could: MFA and gov.br confirmation are completed by the account holder,
-    in a browser they can see.
-
-    What it does own is the session afterwards, which is a credential at
-    least as strong as the password and usually stronger, since it is already
-    past the second factor.
-    """
-    module = AUTHENTICATED_SOURCES.get(source)
-    if module is None:
-        available = ", ".join(sorted(AUTHENTICATED_SOURCES)) or "none"
-        print(f"No sign-in flow is implemented for {source!r}. Available: {available}")
-        return 1
-
-    settings = get_settings()
-    root = settings.browser_profile_dir
-
-    print(f"{module.SOURCE_ID.value}")
-    print(f"  {module.SIGN_IN_NOTES}")
-    print(f"  Session directory: {profile_dir(module.SOURCE_ID, root)}")
-    print()
-
-    if has_profile(module.SOURCE_ID, root):
-        # Deliberately not "a session exists": a profile directory says a
-        # browser has run here, not that anyone signed in.
-        print("  A browser profile already exists here and will be reused.")
-        print("  If a previous sign-in did not finish, signing in again is safe.")
-        print()
-
-    try:
-        with browser_session(
-            module.SOURCE_ID,
-            profile_root=root,
-            headed=True,
-            chromium_path=settings.chromium_path,
-        ) as context:
-            page = context.pages[0] if context.pages else context.new_page()
-            # networkidle, then wait for the form: gov.br renders client-side,
-            # so "loaded" and "usable" are not the same moment and the
-            # difference is a blank window.
-            page.goto(module.ENTRY_URL, wait_until="networkidle")
-
-            selector = getattr(module, "LOGIN_FORM_SELECTOR", None)
-            if selector:
-                try:
-                    page.wait_for_selector(selector, timeout=30_000)
-                except Exception:
-                    # Said rather than hidden. A blank window looks identical
-                    # to a broken tool from the outside, so if the form did
-                    # not appear the person should know that is what happened
-                    # and not spend ten minutes looking for a field.
-                    print("  The sign-in form did not render within 30s.")
-                    print("  The window is still open, so try reloading it there.")
-                    print()
-
-            print("  A browser window is open. Sign in there, then come back.")
-            print("  Nothing is read from the page while you do.")
-            print()
-            wait_for_sign_in(context)
-    except BrowserUnavailableError as error:
-        print(f"  {error}")
-        return 1
-
-    print()
-    print("  Session saved.")
-    # Said plainly rather than implied: the session is stored, but nothing has
-    # read anything behind the login yet, because no navigation exists to do
-    # so. Reporting success for a collection that did not happen is exactly
-    # the kind of false confidence this project is built to avoid.
-    print(
-        "  Note: the session is stored but NOT yet verified. Collection from "
-        "this source is not implemented, so nothing has been read from behind "
-        "the login."
-    )
-    return 0
-
-
 def _parse_date(value: str) -> date:
     try:
         return date.fromisoformat(value)
@@ -321,30 +157,6 @@ def _build_parser() -> argparse.ArgumentParser:
             "Re-collecting an unchanged value stores nothing."
         ),
     )
-    auth_parser = subparsers.add_parser(
-        "auth",
-        help="sign in to an authenticated source, with a person completing the challenge",
-        description=(
-            "Opens the source's entry page in a visible browser and waits. It "
-            "never types a credential and never answers a challenge; you sign "
-            "in, and the session is kept for later collection."
-        ),
-    )
-    auth_parser.add_argument(
-        "source",
-        choices=sorted(AUTHENTICATED_SOURCES),
-        help="the source to sign in to",
-    )
-
-    subparsers.add_parser(
-        "credentials",
-        help="report which declared credentials are present",
-        description=(
-            "Reports presence only. It never prints, logs or validates a "
-            "credential value, so its output is safe to share."
-        ),
-    )
-
     collect_parser.add_argument(
         "--indicator",
         action="append",
@@ -387,12 +199,6 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     configure_logging(get_settings().log_level)
-
-    if args.command == "credentials":
-        return report_credentials()
-
-    if args.command == "auth":
-        return authenticate(args.source)
 
     if args.command != "collect":  # pragma: no cover - argparse enforces this
         parser.error(f"unknown command {args.command!r}")

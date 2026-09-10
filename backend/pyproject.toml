@@ -15,13 +15,6 @@ dependencies = [
     "httpx>=0.28",
 ]
 
-[project.optional-dependencies]
-# Browser automation for authenticated sources. An extra rather than a
-# dependency because it only runs on the host: the container serves the API
-# and collects public market data, and adding a browser to that image would
-# be half a gigabyte for something it never executes.
-rpa = ["playwright>=1.49"]
-
 [project.scripts]
 # The scheduled collector calls this, so the schedule does not depend on an
 # HTTP route staying named the same.
@@ -79,13 +72,6 @@ packages = ["credit_radar"]
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
-
-# Playwright lives in the `rpa` extra, so a base install has no stubs for it.
-# Ignored rather than made mandatory: type-checking the whole project should
-# not require installing a browser toolchain.
-[[tool.mypy.overrides]]
-module = "playwright.*"
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -95,19 +95,24 @@ a plausible-looking value. This caught a mortgage series that was labelled
 market-rate but was in fact the regulated-rate series — a 3+ percentage
 point error in exactly the comparison the product exists to make.
 
-Never bypass CAPTCHA, MFA, gov.br authentication or device confirmation.
-Support human-assisted authentication instead. Treat session tokens and
-browser profiles as secrets.
+**Never bypass CAPTCHA, MFA, gov.br authentication or device confirmation**,
+and do not build fingerprint, header or user-agent evasion to get past one.
+This is settled by measurement, not preference: gov.br gates every Registrato
+sign-in path behind invisible hCaptcha, so the login is not automated at all
+and the user exports the report themselves. See
+`docs/providers/registrato.md`.
 
 ## Security
 
+- **The application stores no credentials.** Authenticated sources are
+  reached by the user exporting a report in their own browser; CreditRadar
+  parses the file. There is no password, CPF, session or browser profile
+  anywhere in it. Do not reintroduce one without a source that both needs it
+  and permits automation.
 - **Never ask the user for a CPF, full name, date of birth, password or any
   other identifier, and never accept one pasted into a conversation.** An
   agent conversation is a transcript: a value pasted there has left the
-  user's control, whatever happens next. Identifiers reach the running system
-  through the host's secret chain (Bitwarden to sops to `/run/secrets`, read
-  at runtime), so this repository and any assistant working on it hold the
-  NAME of a secret and never its value. If a task seems to need a real
+  user's control, whatever happens next. If a task seems to need a real
   identifier, the task is wrong: use a synthetic fixture.
 - Never commit credentials, CPF, financial records, session cookies, tokens,
   browser profiles or real credit reports.

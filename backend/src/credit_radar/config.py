@@ -9,7 +9,6 @@ leak it.
 from __future__ import annotations
 
 from functools import lru_cache
-from pathlib import Path
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -49,25 +48,6 @@ class Settings(BaseSettings):
 
     Kept narrow deliberately. This API serves personal credit data and has no
     reason to be reachable from an arbitrary page.
-    """
-
-    browser_profile_dir: Path = Path.home() / ".local/state/credit-radar/browser-profiles"
-    """Where authenticated browser sessions are kept.
-
-    Outside the repository, and outside the container. An authenticated
-    session is a credential at least as strong as the password that produced
-    it, and usually stronger, since it is already past the second factor.
-
-    Under the user's state directory rather than anywhere shared, created
-    with owner-only permissions.
-    """
-
-    chromium_path: str | None = None
-    """Chromium for browser automation.
-
-    Set from the development shell, because the binaries Playwright
-    downloads are linked against paths that do not exist on NixOS. None means
-    "let Playwright decide", which works on a conventional distribution.
     """
 
     http_timeout_seconds: float = Field(default=20.0, gt=0)
