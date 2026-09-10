@@ -8,8 +8,13 @@
  * The description is desktop-only. On a phone the vertical space it costs
  * is better spent on the content, which carries its own context; a
  * description truncated to fit is worse than one that is not there.
+ *
+ * The theme control lives here rather than in the sidebar because the
+ * sidebar is behind a tap on a phone, and this is the surface that is
+ * always visible.
  */
 
+import { ThemeToggle } from "@/components/app-shell/theme-toggle";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 
@@ -37,9 +42,10 @@ export function PageHeader({
           </p>
         ) : null}
       </div>
-      {actions ? (
-        <div className="flex shrink-0 items-center gap-2">{actions}</div>
-      ) : null}
+      <div className="flex shrink-0 items-center gap-1.5">
+        {actions}
+        <ThemeToggle />
+      </div>
     </header>
   );
 }

@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AppSidebar } from "@/components/app-shell/app-sidebar";
 import { MobileTabBar } from "@/components/app-shell/mobile-tab-bar";
 import { TITLE_TEMPLATE } from "@/components/app-shell/section-metadata";
+import { THEME_SCRIPT } from "@/components/app-shell/theme";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -55,6 +56,11 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {/* First thing in the document, and blocking: it resolves the theme
+            before anything paints. Deferred, the first frame would be light
+            and then flip, which on a dashboard opened at night is a white
+            flash in a dark room. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <TooltipProvider>
           <SidebarProvider>
             <AppSidebar />
