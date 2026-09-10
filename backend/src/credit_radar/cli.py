@@ -24,7 +24,14 @@ from credit_radar.domain.market import INDICATOR_CATALOG, Frequency, IndicatorCo
 from credit_radar.domain.provenance import CollectionStatus
 from credit_radar.logging_config import configure_logging
 from credit_radar.persistence.database import session_scope
+from credit_radar.providers.bcb import registrato
 from credit_radar.providers.bcb.sgs import SGS_SERIES, BcbSgsProvider
+from credit_radar.providers.browser import (
+    BrowserUnavailableError,
+    browser_session,
+    has_session,
+    profile_dir,
+)
 from credit_radar.providers.http import HttpClient
 from credit_radar.services.market_ingestion import IngestionResult, MarketIngestionService
 
@@ -177,6 +184,72 @@ def report_credentials() -> int:
     return 0
 
 
+AUTHENTICATED_SOURCES = {registrato.SOURCE_ID.value: registrato}
+"""Sources with a sign-in flow. Only implemented ones appear here."""
+
+
+def authenticate(source: str) -> int:
+    """Open a browser so a person can sign in, then keep the session.
+
+    The automation opens the source's own entry page and stops. It does not
+    type a password, does not answer a challenge and has no code path that
+    could: MFA and gov.br confirmation are completed by the account holder,
+    in a browser they can see.
+
+    What it does own is the session afterwards, which is a credential at
+    least as strong as the password and usually stronger, since it is already
+    past the second factor.
+    """
+    module = AUTHENTICATED_SOURCES.get(source)
+    if module is None:
+        available = ", ".join(sorted(AUTHENTICATED_SOURCES)) or "none"
+        print(f"No sign-in flow is implemented for {source!r}. Available: {available}")
+        return 1
+
+    settings = get_settings()
+    root = settings.browser_profile_dir
+
+    print(f"{module.SOURCE_ID.value}")
+    print(f"  {module.SIGN_IN_NOTES}")
+    print(f"  Session directory: {profile_dir(module.SOURCE_ID, root)}")
+    print()
+
+    if has_session(module.SOURCE_ID, root):
+        print("  A saved session already exists; signing in again replaces it.")
+        print()
+
+    try:
+        with browser_session(
+            module.SOURCE_ID,
+            profile_root=root,
+            headed=True,
+            chromium_path=settings.chromium_path,
+        ) as context:
+            page = context.pages[0] if context.pages else context.new_page()
+            page.goto(module.ENTRY_URL)
+
+            print("  A browser window is open. Sign in there, then come back.")
+            print("  Nothing is read from the page while you do.")
+            print()
+            input("  Press Enter once you have finished signing in... ")
+    except BrowserUnavailableError as error:
+        print(f"  {error}")
+        return 1
+
+    print()
+    print("  Session saved.")
+    # Said plainly rather than implied: the session is stored, but nothing has
+    # read anything behind the login yet, because no navigation exists to do
+    # so. Reporting success for a collection that did not happen is exactly
+    # the kind of false confidence this project is built to avoid.
+    print(
+        "  Note: the session is stored but NOT yet verified. Collection from "
+        "this source is not implemented, so nothing has been read from behind "
+        "the login."
+    )
+    return 0
+
+
 def _parse_date(value: str) -> date:
     try:
         return date.fromisoformat(value)
@@ -205,6 +278,21 @@ def _build_parser() -> argparse.ArgumentParser:
             "Re-collecting an unchanged value stores nothing."
         ),
     )
+    auth_parser = subparsers.add_parser(
+        "auth",
+        help="sign in to an authenticated source, with a person completing the challenge",
+        description=(
+            "Opens the source's entry page in a visible browser and waits. It "
+            "never types a credential and never answers a challenge; you sign "
+            "in, and the session is kept for later collection."
+        ),
+    )
+    auth_parser.add_argument(
+        "source",
+        choices=sorted(AUTHENTICATED_SOURCES),
+        help="the source to sign in to",
+    )
+
     subparsers.add_parser(
         "credentials",
         help="report which declared credentials are present",
@@ -259,6 +347,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "credentials":
         return report_credentials()
+
+    if args.command == "auth":
+        return authenticate(args.source)
 
     if args.command != "collect":  # pragma: no cover - argparse enforces this
         parser.error(f"unknown command {args.command!r}")
