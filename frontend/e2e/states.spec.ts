@@ -109,6 +109,51 @@ test.describe("not implemented", () => {
 
     await expect(page.getByText(/dado financeiro inventado é pior/)).toBeVisible();
   });
+
+  test("it says what the section will show and what it may not break", async ({
+    page,
+  }) => {
+    await page.goto("/scores");
+
+    await expect(
+      page.getByRole("heading", { name: "O que esta seção vai mostrar" }),
+    ).toBeVisible();
+    // The domain rule, on the page, where whoever builds the section and
+    // whoever reads it will both see it.
+    await expect(
+      page.getByText(/Nunca serão combinados em um score único/),
+    ).toBeVisible();
+  });
+
+  for (const route of [
+    "/scores",
+    "/negative-records",
+    "/inquiries",
+    "/debts",
+    "/settlement-offers",
+    "/exposure",
+    "/financing",
+    "/readiness",
+    "/goals",
+    "/history",
+  ]) {
+    test(`${route} shows no figure at all`, async ({ page }) => {
+      await page.goto(route);
+      await expect(page.getByRole("heading").first()).toBeVisible();
+
+      // A number on a page about someone's credit is read as a fact about
+      // their credit, whatever label sits beside it. These pages have no
+      // data, so they must show no numbers -- and no skeleton pretending
+      // to be data that has not arrived either.
+      const body = await page
+        .locator("main")
+        .evaluate((node) => node.textContent ?? "");
+
+      expect(body).not.toMatch(/\d+[.,]\d+/);
+      expect(body).not.toMatch(/R\$/);
+      expect(body).not.toMatch(/\d+\s*%/);
+    });
+  }
 });
 
 test.describe("loading state", () => {

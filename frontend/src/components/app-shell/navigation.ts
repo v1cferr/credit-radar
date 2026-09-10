@@ -127,7 +127,8 @@ export const NAVIGATION: NavGroup[] = [
         href: "/exposure",
         icon: Landmark,
         implemented: false,
-        requires: "o provedor do SCR / Registrato do Banco Central",
+        requires:
+          "a persistência da série mensal do SCR — o leitor do relatório do Registrato já existe e reconhece o histórico completo, mas ainda não há onde guardá-lo",
       },
     ],
   },
