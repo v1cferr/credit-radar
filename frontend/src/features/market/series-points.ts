@@ -14,7 +14,11 @@
  * page slower without telling the reader anything new.
  */
 
-import type { IndicatorKind, ObservationSeries } from "@/lib/api/types";
+import type {
+  IndicatorCode,
+  IndicatorKind,
+  ObservationSeries,
+} from "@/lib/api/types";
 
 /** One plotted point. Short keys because there are hundreds of these. */
 export interface SeriesPoint {
@@ -47,4 +51,37 @@ export function toSeriesPoints(series: ObservationSeries): SeriesPoint[] {
  */
 export function lineTypeFor(kind: IndicatorKind): "stepAfter" | "linear" {
   return kind === "policy_rate" ? "stepAfter" : "linear";
+}
+
+
+/** One series ready to plot, with what is needed to draw and label it. */
+export interface PlottedSeries {
+  code: IndicatorCode;
+  kind: IndicatorKind;
+  points: SeriesPoint[];
+}
+
+/** A row of the merged dataset: one reference date across every series. */
+export type MergedRow = { d: string } & Record<string, string | undefined>;
+
+/**
+ * Merge several series into rows keyed by reference date.
+ *
+ * A date where one series has no observation is left undefined rather than
+ * carried over from the previous date or interpolated. The chart then draws
+ * a gap, which is what a gap is: the source published nothing. Filling it
+ * would invent a rate.
+ */
+export function mergeSeries(series: PlottedSeries[]): MergedRow[] {
+  const rows = new Map<string, MergedRow>();
+
+  for (const entry of series) {
+    for (const point of entry.points) {
+      const row = rows.get(point.d) ?? { d: point.d };
+      row[entry.code] = point.v;
+      rows.set(point.d, row);
+    }
+  }
+
+  return [...rows.values()].sort((a, b) => a.d.localeCompare(b.d));
 }

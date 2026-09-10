@@ -91,6 +91,20 @@ export const KIND_LABELS: Record<IndicatorKind, string> = {
   inflation_index: "índice de inflação",
 };
 
+/**
+ * Heading for a group of indicators of the same kind.
+ *
+ * Separate from `KIND_LABELS`, which is a phrase that reads inside a
+ * sentence ("é uma taxa de política monetária"). A section heading is a
+ * label, not a clause, and it names what the reader came for rather than
+ * the taxonomy the value belongs to.
+ */
+export const KIND_HEADINGS: Record<IndicatorKind, string> = {
+  policy_rate: "Taxa básica",
+  market_interest_rate: "Taxas de financiamento",
+  inflation_index: "Índices de inflação",
+};
+
 /** Human-readable name of a data source, by its internal id. */
 export const SOURCE_LABELS: Record<string, string> = {
   "bcb.sgs": "Banco Central do Brasil — SGS",

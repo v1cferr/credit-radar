@@ -138,9 +138,33 @@ test.describe("market dashboard", () => {
   });
 
   test("explains that the mortgage series are not interchangeable", async ({ page }) => {
+    // The bug behind this was real: the regulated series was once labelled
+    // as market rates. The page has to say the two regimes are different
+    // markets, wherever that explanation lives -- it now sits on the chart
+    // that plots them together, which is where the two lines invite being
+    // read as one thing.
     await expect(
-      page.getByText(/Crédito imobiliário são duas séries diferentes/),
+      page.getByText(/dois regimes porque são dois mercados/),
     ).toBeVisible();
+  });
+
+  test("charts the two mortgage regimes on the same axis", async ({ page }) => {
+    // Comparing them is the point. Separate charts with independent y
+    // domains would make a three-point gap look like whatever each chart's
+    // scale chose to make it look like.
+    const panel = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: "Quanto custa tomar crédito" });
+
+    await expect(
+      panel.getByText(SEEDED.mortgageMarket.label),
+    ).toBeVisible();
+    await expect(
+      panel.getByText(SEEDED.mortgageRegulated.label),
+    ).toBeVisible();
+
+    // One line per series in the panel, not one chart per series.
+    await expect(panel.locator("path.recharts-curve")).toHaveCount(3);
   });
 });
 
