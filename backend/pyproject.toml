@@ -15,6 +15,11 @@ dependencies = [
     "httpx>=0.28",
 ]
 
+[project.scripts]
+# The scheduled collector calls this, so the schedule does not depend on an
+# HTTP route staying named the same.
+credit-radar = "credit_radar.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8.3",

@@ -149,13 +149,30 @@ pnpm dev --port 3007
 
 ### Collecting market data
 
-Collection is always explicit. Nothing runs on a schedule yet.
+```bash
+cd backend
+
+# Routine collection: every indicator, over a window sized by its
+# publication frequency. This is what the scheduled timer runs.
+uv run credit-radar collect --quiet
+
+# One indicator, explicit window, for backfilling history
+uv run credit-radar collect --indicator SELIC_TARGET --from 2020-01-01 --to 2026-12-31
+```
+
+The window is frequency-aware on purpose. Collecting on a schedule exists to
+catch **revisions**, not only new points: a monthly series such as IPCA is
+revised after publication, so each run re-reads roughly thirteen months of it
+and about a month of the daily series. Re-reading costs one request and
+stores nothing when a value is unchanged.
+
+`--quiet` logs only changes and failures, so a daily run leaves no trace in
+the journal on a day when nothing moved.
+
+Collection is also reachable over HTTP, which is what the dashboard's own
+requests use:
 
 ```bash
-# Current value (the upstream API caps this form at 20 points)
-curl -X POST "http://localhost:8007/api/v1/market/indicators/SELIC_TARGET/ingest?count=20"
-
-# Backfill history (the date-range form is uncapped)
 curl -X POST "http://localhost:8007/api/v1/market/indicators/SELIC_TARGET/ingest?from=2024-01-01&to=2026-12-31"
 ```
 

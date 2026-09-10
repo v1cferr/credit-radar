@@ -158,8 +158,10 @@ paying for itself, and the document is already served at
   Copom meetings, so nearly all of those points are redundant. Compressing
   runs of equal values would be lossless for step series but not for the
   monthly rate series, so it needs a real decision rather than a quick fix.
-- **No scheduled collection.** Ingestion is triggered explicitly. A scheduler
-  is safe to add because re-ingestion is already idempotent.
+- **Collection depends on the host's schedule.** `credit-radar collect` is
+  the scheduled entry point, driven by a systemd timer in the NixOS config
+  rather than by anything in this repository, so a checkout on another
+  machine collects only when asked.
 - **Single user, no authentication.** Deliberate: the service binds to
   loopback and is private. Multi-tenancy, RBAC and account management are out
   of scope.
