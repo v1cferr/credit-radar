@@ -46,6 +46,15 @@ package-lock.json
 yarn.lock
 bun.lockb
 
+# --- End-to-end test artefacts --------------------------------------------
+# Traces and screenshots from a failed run. They can capture whatever the
+# page was showing, so they are never committed even though the E2E data is
+# synthetic.
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/.playwright/
+
 # --- Tooling caches -------------------------------------------------------
 .pytest_cache/
 .mypy_cache/
