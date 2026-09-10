@@ -271,3 +271,62 @@ class TestPersonalTableColumns:
         rows = [["Titular", "Saldo"]]
 
         assert redactor.table(rows) == rows
+
+
+class TestTableHeaderRowIsNotTrusted:
+    """The regression that leaked a real name and CPF 31 times.
+
+    An earlier version copied a table's first row verbatim, on the assumption
+    that it holds column labels. In a real SCR report, PDF extraction put the
+    PAGE header into that row: name and CPF, repeated on every page, passing
+    through untouched while the tool reported success on everything else.
+
+    The shape below is the one that broke, with synthetic values.
+    """
+
+    PAGE_HEADER = (
+        "Relatório de Empréstimos e Financiamentos (SCR)\n"
+        "Página 1 de 31\n"
+        "Nome: ALGUEM SOBRENOME\n"
+        "CPF/CNPJ: 529.982.247-25"
+    )
+
+    def test_a_page_header_in_the_first_row_is_redacted(self, redactor):
+        result = redactor.table([[self.PAGE_HEADER], ["some data"]])
+
+        header = result[0][0]
+        assert "ALGUEM SOBRENOME" not in header
+        assert "529.982.247-25" not in header
+
+    def test_the_structural_parts_of_that_header_survive(self, redactor):
+        # A parser uses these to find page boundaries and the report type, so
+        # redacting the whole cell would have destroyed the format.
+        header = redactor.table([[self.PAGE_HEADER], ["x"]])[0][0]
+
+        assert "Relatório de Empréstimos e Financiamentos (SCR)" in header
+        assert "Página 1 de 31" in header
+
+    def test_ordinary_column_labels_are_untouched(self, redactor):
+        rows = [["Instituicao", "CNPJ", "Saldo devedor"], ["BANCO X", "1", "2"]]
+
+        assert redactor.table(rows)[0] == rows[0]
+
+    def test_column_detection_still_works_after_the_header_is_redacted(self, redactor):
+        # Personal columns are identified from the header BEFORE it is
+        # rewritten; getting that order wrong would stop the detection
+        # working at all.
+        rows = [
+            ["Titular dos dados", "Modalidade"],
+            ["ALGUEM SOBRENOME", "Credito pessoal"],
+        ]
+
+        result = redactor.table(rows)
+
+        assert result[0][0] == "Titular dos dados"
+        assert "ALGUEM" not in result[1][0]
+        assert result[1][1] == "Credito pessoal"
+
+    def test_a_cpf_anywhere_in_a_header_cell_is_caught(self, redactor):
+        result = redactor.table([["Doc do titular 529.982.247-25"], ["x"]])
+
+        assert "529.982.247-25" not in result[0][0]

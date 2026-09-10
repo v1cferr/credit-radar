@@ -278,6 +278,11 @@ class Redactor:
         if not rows:
             return rows
 
+        # The header is inspected for column labels and THEN redacted like any
+        # other text. An earlier version copied it verbatim, on the assumption
+        # that a first row holds column names. In a real report it held the
+        # page header: name and CPF, repeated on all 31 pages, passing through
+        # untouched while the tool reported success.
         header = rows[0]
         personal_columns = {
             index
@@ -290,7 +295,9 @@ class Redactor:
             )
         }
 
-        redacted = [list(header)]
+        # Text-level rules only: replacing a header cell wholesale would
+        # destroy the column labels a parser is written against.
+        redacted = [[self.text(str(cell)) for cell in header]]
         for row in rows[1:]:
             new_row = []
             for index, cell in enumerate(row):

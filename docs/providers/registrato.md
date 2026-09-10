@@ -94,7 +94,23 @@ prose. For a financial report the layout IS the format: a parser needs to
 know which column held the balance, and recovering that from reflowed text is
 guesswork.
 
-### Two ways this nearly leaked
+### Three ways this leaked, one of them in a real report
+
+The third was caught only by scanning the fixture generated from the real
+document, which is why that scan is a required step and not a formality.
+
+**A table's first row is not always column labels.** PDF extraction put the
+page header into it, so `Nome: ...` and `CPF/CNPJ: ...` sat in row zero of a
+table on all 31 pages. The tool copied header rows verbatim, on the
+assumption that they hold column names, and reported success on everything
+else: 192 amounts, 62 CPFs and 132 personal columns replaced, while the real
+name and CPF passed through 31 times each.
+
+Header cells are now redacted with the text-level rules, after being read for
+column labels and before being rewritten. Only text rules apply, because
+replacing a header cell wholesale would destroy the labels a parser needs.
+
+### Two more ways this nearly leaked
 
 Both were found by testing against a realistic synthetic PDF, and both would
 have produced a fixture that looked reviewed.
@@ -116,9 +132,34 @@ There is deliberately **no general date rule**: `Data base: 06/2026` and
 `Vencimento: 01/03/2028` are the format a parser is written against, while a
 birth date is personal, and only the label separates them.
 
-Review the output, commit the fixture, and the parser and the domain model
-for credit exposure get written against it. The downloaded file's own name
-contains the CPF, so the fixture must not inherit it.
+### Verifying a fixture before committing it
+
+Not optional, and not by eye over 100 KB of JSON. Scan it:
+
+```bash
+python - <<'EOF'
+import re, pathlib
+raw = pathlib.Path("tests/fixtures/registrato/scr.json").read_text()
+placeholders = {"000.000.000-00", "00.000.000/0000-00", "00000000000"}
+for label, pattern in {
+    "CPF":   r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b",
+    "CNPJ":  r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b",
+    "11dig": r"\b\d{11}\b",
+    "email": r"\b[\w.+-]+@[\w-]+\.[\w.]{2,}\b",
+    "CEP":   r"\b\d{5}-\d{3}\b",
+}.items():
+    real = {h for h in re.findall(pattern, raw)} - placeholders
+    print(f"{label}: {'clean' if not real else f'{len(real)} LEAK(S)'}")
+print("also grep for your own name and address by hand")
+EOF
+```
+
+A count of replacements is not evidence of a clean fixture: the leak above
+happened in a run that reported 386 successful replacements.
+
+The downloaded file's own name contains the CPF, so the fixture must not
+inherit it, and the PDF is worth deleting from `~/Downloads` once the fixture
+exists, since that directory is inside the backup.
 
 ## If the login ever needs automating
 
