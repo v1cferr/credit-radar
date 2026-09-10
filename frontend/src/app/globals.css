@@ -113,7 +113,7 @@
   --warning-subtle: oklch(0.96 0.04 82);
   --informational: oklch(0.5 0.15 255);
   --informational-subtle: oklch(0.96 0.03 255);
-  --neutral: oklch(0.556 0 0);
+  --neutral: oklch(0.5 0 0);
   --neutral-subtle: oklch(0.97 0 0);
 
   /* Charts. Five hues that stay separable from each other, ordered so the

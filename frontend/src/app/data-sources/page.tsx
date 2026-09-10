@@ -57,7 +57,9 @@ export default async function DataSourcesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Situação da coleta</CardTitle>
+            <CardTitle className="text-sm" role="heading" aria-level={2}>
+              Situação da coleta
+            </CardTitle>
             <CardDescription>
               Resultado da última tentativa de coleta de cada série. Uma fonte
               cuja última tentativa falhou aparece como falha mesmo que ainda
@@ -68,7 +70,6 @@ export default async function DataSourcesPage() {
             {!summary.ok ? (
               <BackendOfflineState message={summary.error} />
             ) : (
-              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -127,14 +128,15 @@ export default async function DataSourcesPage() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Superfície de integração</CardTitle>
+            <CardTitle className="text-sm" role="heading" aria-level={2}>
+              Superfície de integração
+            </CardTitle>
             <CardDescription>
               As fontes são integradas por ordem de estabilidade: API oficial,
               exportação estruturada, relatório para download e, só onde não

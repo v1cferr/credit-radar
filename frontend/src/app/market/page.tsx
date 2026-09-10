@@ -73,7 +73,7 @@ export default async function MarketPage() {
         description="Séries oficiais do Banco Central para o mercado de crédito brasileiro"
       />
 
-      <div className="flex flex-col gap-8 p-4 md:p-6">
+      <div className="flex flex-col gap-6 p-4 md:p-6">
         {!summary.ok ? (
           <BackendOfflineState message={summary.error} />
         ) : (
@@ -132,7 +132,9 @@ export default async function MarketPage() {
                 return (
                   <Card key={panel.id}>
                     <CardHeader>
-                      <CardTitle className="text-sm">{panel.title}</CardTitle>
+                      <CardTitle className="text-sm" role="heading" aria-level={3}>
+                        {panel.title}
+                      </CardTitle>
                       <CardDescription>{panel.description}</CardDescription>
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         <Badge variant="secondary" className="text-[0.65rem]">

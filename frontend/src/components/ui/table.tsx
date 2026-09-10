@@ -7,6 +7,11 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
+      // A scrollable box has to be reachable by keyboard, or a reader who
+      // does not use a pointer cannot see the columns that overflow. Only
+      // relevant on narrow viewports, where these tables do overflow, but
+      // the tab stop is harmless when they fit.
+      tabIndex={0}
       className="relative w-full overflow-x-auto"
     >
       <table
