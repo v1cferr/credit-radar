@@ -23,8 +23,15 @@ function getSnapshot(): boolean {
   return window.matchMedia(QUERY).matches
 }
 
-/** On the server there is no viewport; assume desktop, which is the
- * primary target for this application. */
+/**
+ * On the server there is no viewport, so this reports desktop.
+ *
+ * Safe only because nothing about the layout depends on it: responsive
+ * structure is expressed in CSS breakpoints, which are already correct in
+ * the server-rendered HTML. This hook gates behaviour -- whether the
+ * sidebar opens as a drawer or in place -- and that behaviour starts from
+ * a closed drawer either way.
+ */
 function getServerSnapshot(): boolean {
   return false
 }

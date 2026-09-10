@@ -12,6 +12,8 @@
 
 import { expect, test } from "@playwright/test";
 
+import { navLink } from "./helpers/ui";
+
 test.describe("backend unavailable", () => {
   test("the overview says the backend could not be reached", async ({ page }) => {
     await page.goto("/");
@@ -51,10 +53,17 @@ test.describe("backend unavailable", () => {
   test("navigation still works during an outage", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: "Scores", exact: true }).click();
+    await navLink(page, "Scores").click();
+
+    // Waits for the destination before asserting on its content. The
+    // overview also carries "ainda não foi implementado" panels, so an
+    // assertion that fires mid-navigation reads the page it is leaving.
+    await expect(page.getByRole("heading", { name: "Scores" })).toBeVisible();
 
     // A planned section does not depend on the backend, so it must still
     // render normally.
-    await expect(page.getByText(/ainda não foi implementado/)).toBeVisible();
+    await expect(
+      page.getByText(/Scores ainda não foi implementado/),
+    ).toBeVisible();
   });
 });

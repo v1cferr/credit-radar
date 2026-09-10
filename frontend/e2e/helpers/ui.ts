@@ -18,7 +18,23 @@ export function provenanceTrigger(card: Locator): Locator {
   return card.getByRole("button", { name: "Ver a origem deste valor" });
 }
 
-/** The sidebar navigation link with a given name. */
+/**
+ * The navigation link for a given section.
+ *
+ * A planned section carries a screen-reader-only "(seção planejada)" in the
+ * link, so its accessible name is the title plus that suffix. Matching it
+ * as optional keeps the call sites written in terms of the section, and
+ * still fails if the title itself changes.
+ *
+ * `.first()` because a phone viewport also renders the bottom tab bar, and
+ * the sections that appear in both are reachable under the same name from
+ * either one.
+ */
 export function navLink(page: Page, name: string): Locator {
-  return page.getByRole("link", { name, exact: true });
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return page
+    .getByRole("link", {
+      name: new RegExp(`^${escaped}( \\(seção planejada\\))?$`),
+    })
+    .first();
 }

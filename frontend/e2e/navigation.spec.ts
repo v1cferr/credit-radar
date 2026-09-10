@@ -85,18 +85,15 @@ test.describe("every route renders", () => {
   }
 });
 
-test.describe("narrow viewport", () => {
-  test.use({ viewport: { width: 390, height: 844 } });
-
-  test("the sidebar collapses and can be reopened", async ({ page }) => {
+test.describe("desktop viewport", () => {
+  test("the phone tab bar is not on screen", async ({ page }) => {
     await page.goto("/");
 
-    // On a phone the navigation starts hidden; the overview itself must still
-    // be readable, because a quick balance check is the mobile use case.
-    await expect(page.getByRole("heading", { name: "Visão geral" })).toBeVisible();
-
-    await page.getByRole("button", { name: "Alternar menu lateral" }).click();
-
+    // The sidebar is permanently visible here, so the tab bar would be a
+    // second copy of the same navigation competing with the content.
+    await expect(
+      page.getByRole("navigation", { name: "Atalhos de navegação" }),
+    ).toBeHidden();
     await expect(navLink(page, "Mercado")).toBeVisible();
   });
 });

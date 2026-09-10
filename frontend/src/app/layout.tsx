@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { AppSidebar } from "@/components/app-shell/app-sidebar";
+import { MobileTabBar } from "@/components/app-shell/mobile-tab-bar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -27,7 +28,12 @@ export default function RootLayout({
         <TooltipProvider>
           <SidebarProvider>
             <AppSidebar />
-            <SidebarInset>{children}</SidebarInset>
+            <SidebarInset>
+              {/* Clears the fixed tab bar, so the last row of a table is
+                  not left permanently under it. */}
+              <div className="pb-14 md:pb-0">{children}</div>
+            </SidebarInset>
+            <MobileTabBar />
           </SidebarProvider>
         </TooltipProvider>
       </body>

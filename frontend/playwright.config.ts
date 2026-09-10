@@ -65,7 +65,19 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
       },
-      testIgnore: /offline\.spec\.ts/,
+      testIgnore: [/offline\.spec\.ts/, /responsive\.spec\.ts/],
+    },
+    {
+      // The phone layout, against the same servers. A separate project
+      // rather than a viewport override inside the tests, so the mobile
+      // assertions cannot accidentally run at desktop width and pass for
+      // the wrong reason.
+      name: "mobile-chromium",
+      testMatch: /responsive\.spec\.ts/,
+      use: {
+        ...devices["Pixel 7"],
+        launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
+      },
     },
     {
       // A separate project because it needs a different base URL: the

@@ -3,18 +3,27 @@
  *
  * Grouped by the question each area answers rather than by data source,
  * because the point of this application is that one question is usually
- * answered by several sources at once.
+ * answered by several sources at once. "Do I have a debt problem?" is
+ * answered by a bureau, a creditor and the Banco Central SCR together, and
+ * a menu organized by provider would scatter that answer across three
+ * places.
  *
- * `implemented` is honest metadata: the navigation shows the whole intended
- * product, and marks what does not exist yet instead of hiding it or
- * pretending it works.
+ * The groups are ordered the way the questions arrive: what is true now,
+ * who I am to the market, what I owe, what I should do about it, and
+ * whether any of it can be trusted.
  *
- * Titles and the `requires` text are pt-BR because they reach the screen.
- * Identifiers, hrefs and comments stay en-US.
+ * `implemented` is honest metadata. The navigation shows the whole intended
+ * product and marks what does not exist yet, rather than hiding it or
+ * pretending it works. It is a discriminated union: a planned section
+ * cannot be declared without saying what it is waiting on, because "coming
+ * soon" is not information and a section that has forgotten its own
+ * blocker is how a placeholder quietly becomes permanent.
+ *
+ * Titles, `shortTitle` and `requires` are pt-BR because they reach the
+ * screen. Identifiers, hrefs and comments stay en-US.
  */
 
 import {
-  Activity,
   BarChart3,
   Calculator,
   CircleDollarSign,
@@ -23,20 +32,28 @@ import {
   Gauge,
   Handshake,
   History,
-  LayoutDashboard,
   Landmark,
+  LayoutDashboard,
+  LineChart,
+  Search,
   Target,
   type LucideIcon,
 } from "lucide-react";
 
-export interface NavItem {
+interface NavItemBase {
   title: string;
+  /** Title for the mobile tab bar, where the full one does not fit. */
+  shortTitle?: string;
   href: string;
   icon: LucideIcon;
-  implemented: boolean;
-  /** What has to exist before this section can show real data. */
-  requires?: string;
 }
+
+export type NavItem = NavItemBase &
+  (
+    | { implemented: true }
+    /** What has to exist before this section can show real data. */
+    | { implemented: false; requires: string }
+  );
 
 export interface NavGroup {
   label: string;
@@ -49,6 +66,7 @@ export const NAVIGATION: NavGroup[] = [
     items: [
       {
         title: "Visão geral",
+        shortTitle: "Resumo",
         href: "/",
         icon: LayoutDashboard,
         implemented: true,
@@ -71,13 +89,13 @@ export const NAVIGATION: NavGroup[] = [
         href: "/negative-records",
         icon: FileWarning,
         implemented: false,
-        requires:
-          "um provedor de bureau que informe as negativações ativas",
+        requires: "um provedor de bureau que informe as negativações ativas",
       },
       {
         title: "Consultas ao CPF",
+        shortTitle: "Consultas",
         href: "/inquiries",
-        icon: Activity,
+        icon: Search,
         implemented: false,
         requires: "um provedor de bureau que informe as consultas ao CPF",
       },
@@ -96,6 +114,7 @@ export const NAVIGATION: NavGroup[] = [
       },
       {
         title: "Propostas de acordo",
+        shortTitle: "Acordos",
         href: "/settlement-offers",
         icon: Handshake,
         implemented: false,
@@ -104,6 +123,7 @@ export const NAVIGATION: NavGroup[] = [
       },
       {
         title: "Exposição de crédito",
+        shortTitle: "Exposição",
         href: "/exposure",
         icon: Landmark,
         implemented: false,
@@ -117,7 +137,7 @@ export const NAVIGATION: NavGroup[] = [
       {
         title: "Mercado",
         href: "/market",
-        icon: BarChart3,
+        icon: LineChart,
         implemented: true,
       },
       {
@@ -150,6 +170,7 @@ export const NAVIGATION: NavGroup[] = [
     items: [
       {
         title: "Fontes de dados",
+        shortTitle: "Fontes",
         href: "/data-sources",
         icon: Database,
         implemented: true,
@@ -166,8 +187,20 @@ export const NAVIGATION: NavGroup[] = [
   },
 ];
 
+/** Every item, flattened, in the order the groups declare them. */
+export const NAV_ITEMS: NavItem[] = NAVIGATION.flatMap((group) => group.items);
+
+/**
+ * The sections the mobile tab bar offers directly.
+ *
+ * Only what actually shows data. A tab bar is for the destinations reached
+ * most often, and a section that can only report its own absence is not
+ * one of them -- it stays one tap away in the full menu.
+ */
+export const MOBILE_TAB_ITEMS: NavItem[] = NAV_ITEMS.filter(
+  (item) => item.implemented,
+);
+
 export function findNavItem(href: string): NavItem | undefined {
-  return NAVIGATION.flatMap((group) => group.items).find(
-    (item) => item.href === href,
-  );
+  return NAV_ITEMS.find((item) => item.href === href);
 }

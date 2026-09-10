@@ -4,6 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Radar } from "lucide-react";
 
+/**
+ * The full navigation, permanent on a desktop viewport and a drawer on a
+ * phone.
+ *
+ * Links do not prefetch. Every route here is server-rendered on demand
+ * against the backend, so viewport prefetching means that opening any page
+ * asks the server to render all thirteen others -- including the market
+ * page, which fetches years of daily observations. The cost is paid on
+ * every page view, on a phone connection too, for routes the reader may
+ * never open. Fetching on navigation is the right trade for a dashboard
+ * whose pages are individually expensive and individually rare.
+ */
+
 import {
   Sidebar,
   SidebarContent,
@@ -26,7 +39,10 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/" />}>
+            <SidebarMenuButton
+              size="lg"
+              render={<Link href="/" prefetch={false} />}
+            >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Radar className="size-4" />
               </div>
@@ -52,16 +68,16 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       isActive={pathname === item.href}
                       tooltip={item.title}
-                      render={<Link href={item.href} />}
+                      className={
+                        item.implemented ? undefined : "text-muted-foreground"
+                      }
+                      render={<Link href={item.href} prefetch={false} />}
                     >
                       <item.icon />
-                      <span
-                        className={
-                          item.implemented ? undefined : "text-muted-foreground"
-                        }
-                      >
-                        {item.title}
-                      </span>
+                      <span>{item.title}</span>
+                      {item.implemented ? null : (
+                        <span className="sr-only"> (seção planejada)</span>
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}

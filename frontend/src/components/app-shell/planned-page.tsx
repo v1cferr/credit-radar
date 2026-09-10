@@ -4,6 +4,10 @@
  * Driven by the navigation metadata so the page and the sidebar cannot drift
  * apart, and so each one states specifically what it is waiting on rather
  * than showing a generic "coming soon".
+ *
+ * A route that reaches here for a section already implemented is a bug in
+ * the routing, not a page to render, so it 404s rather than telling the
+ * reader that a working section is unavailable.
  */
 
 import { notFound } from "next/navigation";
@@ -14,7 +18,7 @@ import { NotImplementedState } from "@/components/common/state-messages";
 
 export function PlannedPage({ href }: { href: string }) {
   const item = findNavItem(href);
-  if (!item) notFound();
+  if (!item || item.implemented) notFound();
 
   return (
     <>
@@ -22,7 +26,7 @@ export function PlannedPage({ href }: { href: string }) {
       <div className="p-4 md:p-6">
         <NotImplementedState
           feature={item.title}
-          requires={item.requires ?? "further backend work"}
+          requires={item.requires}
         />
       </div>
     </>
